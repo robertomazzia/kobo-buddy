@@ -282,7 +282,7 @@ export async function getCoverDataUrl(epub: LoadedEpub): Promise<string | null> 
   if (!file) return null;
   const bytes = await file.async("uint8array");
   const mime = epub.meta.coverMime ?? "image/jpeg";
-  const blob = new Blob([bytes], { type: mime });
+  const blob = new Blob([bytes as BlobPart], { type: mime });
   return URL.createObjectURL(blob);
 }
 
