@@ -14,13 +14,120 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      allowed_users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          note: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
+      ebooks: {
+        Row: {
+          autore: string | null
+          cover_url: string | null
+          creato_il: string
+          file_path: string | null
+          id: string
+          status: string
+          titolo: string
+          user_id: string
+        }
+        Insert: {
+          autore?: string | null
+          cover_url?: string | null
+          creato_il?: string
+          file_path?: string | null
+          id?: string
+          status?: string
+          titolo: string
+          user_id: string
+        }
+        Update: {
+          autore?: string | null
+          cover_url?: string | null
+          creato_il?: string
+          file_path?: string | null
+          id?: string
+          status?: string
+          titolo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      kobo_devices: {
+        Row: {
+          associato_il: string
+          id: string
+          kobo_pin: string
+          pin_scadenza: string | null
+          session_token: string | null
+          user_id: string
+        }
+        Insert: {
+          associato_il?: string
+          id?: string
+          kobo_pin: string
+          pin_scadenza?: string | null
+          session_token?: string | null
+          user_id: string
+        }
+        Update: {
+          associato_il?: string
+          id?: string
+          kobo_pin?: string
+          pin_scadenza?: string | null
+          session_token?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_email_allowed: { Args: { _email: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
