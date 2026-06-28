@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/optimizer")({
   head: () => ({
     meta: [
       { title: "Kobo ePub Optimizer" },
