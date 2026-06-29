@@ -21,6 +21,8 @@ import {
   revokeKoboDevice,
   type KoboDevice,
 } from "@/lib/kobo.functions";
+import { QuickUpload } from "@/components/QuickUpload";
+import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -56,14 +58,18 @@ function Dashboard() {
     }
   }, [listDevices]);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+  const refreshCounts = useCallback(() => {
     supabase
       .from("ebooks")
       .select("id", { count: "exact", head: true })
       .then(({ count }) => setCounts((c) => ({ ...c, ebooks: count ?? 0 })));
+  }, []);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+    refreshCounts();
     refresh();
-  }, [refresh]);
+  }, [refresh, refreshCounts]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -99,6 +105,7 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted">
+      <Toaster richColors position="top-center" />
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b">
         <div className="max-w-md mx-auto flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
@@ -153,6 +160,8 @@ function Dashboard() {
             <Button className="w-full">Apri l'ottimizzatore</Button>
           </Link>
         </Card>
+
+        <QuickUpload onUploaded={refreshCounts} />
 
         {/* Kobo devices */}
         <Card className="p-5 space-y-4">
