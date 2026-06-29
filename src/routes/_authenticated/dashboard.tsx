@@ -159,6 +159,8 @@ function Dashboard() {
           </Link>
         </Card>
 
+        <QuickUpload onUploaded={refreshCounts} />
+
         {/* Kobo devices */}
         <Card className="p-5 space-y-4">
           <div className="flex items-center justify-between">
