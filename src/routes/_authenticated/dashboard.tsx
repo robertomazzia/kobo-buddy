@@ -21,6 +21,7 @@ import {
   revokeKoboDevice,
   type KoboDevice,
 } from "@/lib/kobo.functions";
+import { QuickUpload } from "@/components/QuickUpload";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
