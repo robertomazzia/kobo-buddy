@@ -128,6 +128,26 @@ export type Database = {
     }
     Functions: {
       is_email_allowed: { Args: { _email: string }; Returns: boolean }
+      kobo_session_books: {
+        Args: { _token: string }
+        Returns: {
+          autore: string
+          cover_url: string
+          creato_il: string
+          id: string
+          status: string
+          titolo: string
+        }[]
+      }
+      kobo_session_owner: {
+        Args: { _token: string }
+        Returns: {
+          display_name: string
+          email: string
+          user_id: string
+        }[]
+      }
+      redeem_kobo_pin: { Args: { _pin: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
