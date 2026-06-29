@@ -1,7 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { redeemKoboPin, getKoboSession, type KoboSession } from "@/lib/kobo.functions";
+import {
+  redeemKoboPin,
+  getKoboSession,
+  type KoboSession,
+} from "@/lib/kobo.functions";
+import { getKoboDownloadUrl, STATUS_READY } from "@/lib/library.functions";
 
 const STORAGE_KEY = "kobo_session_token";
 
@@ -19,6 +24,7 @@ export const Route = createFileRoute("/kobo")({
 function KoboPage() {
   const redeem = useServerFn(redeemKoboPin);
   const fetchSession = useServerFn(getKoboSession);
+  const fetchDownload = useServerFn(getKoboDownloadUrl);
 
   const [token, setToken] = useState<string | null>(null);
   const [pin, setPin] = useState("");
@@ -32,6 +38,7 @@ function KoboPage() {
       setToken(t);
       loadSession(t);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadSession(t: string) {
@@ -78,13 +85,32 @@ function KoboPage() {
     setPin("");
   }
 
-  // E-Ink styles: white bg, black text, large, no animations.
+  async function downloadBook(id: string) {
+    if (!token) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetchDownload({ data: { token, ebookId: id } });
+      if ("error" in res) {
+        setError(res.error);
+      } else {
+        // Trigger download on the Kobo browser
+        window.location.href = res.url;
+      }
+    } catch {
+      setError("Errore durante il download");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // E-Ink rules: pure white background, pure black text, no gradients/animations.
   const page: React.CSSProperties = {
     minHeight: "100vh",
     background: "#ffffff",
     color: "#000000",
     fontFamily: "Georgia, 'Times New Roman', serif",
-    padding: "40px 32px",
+    padding: "40px 24px",
     maxWidth: 900,
     margin: "0 auto",
   };
@@ -92,10 +118,12 @@ function KoboPage() {
   if (!token) {
     return (
       <div style={page}>
-        <h1 style={{ fontSize: 44, fontWeight: 700, marginBottom: 24 }}>Accoppia il Kobo</h1>
-        <p style={{ fontSize: 24, lineHeight: 1.4, marginBottom: 32 }}>
-          Inserisci il codice PIN mostrato sul tuo telefono per collegare questo dispositivo
-          alla tua libreria.
+        <h1 style={{ fontSize: 44, fontWeight: 700, marginBottom: 24, margin: 0 }}>
+          Accoppia il Kobo
+        </h1>
+        <p style={{ fontSize: 22, lineHeight: 1.4, margin: "20px 0 32px" }}>
+          Inserisci il codice PIN mostrato sul tuo telefono per collegare questo
+          dispositivo alla tua libreria.
         </p>
         <form onSubmit={submitPin}>
           <input
@@ -144,6 +172,8 @@ function KoboPage() {
     );
   }
 
+  const readyBooks = (session?.books ?? []).filter((b) => b.status === STATUS_READY);
+
   return (
     <div style={page}>
       <div
@@ -151,12 +181,12 @@ function KoboPage() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "baseline",
-          marginBottom: 32,
+          marginBottom: 24,
           borderBottom: "3px solid #000",
           paddingBottom: 16,
         }}
       >
-        <h1 style={{ fontSize: 40, fontWeight: 700, margin: 0 }}>La tua libreria</h1>
+        <h1 style={{ fontSize: 38, fontWeight: 700, margin: 0 }}>La tua libreria</h1>
         <button
           onClick={unpair}
           style={{
@@ -173,60 +203,68 @@ function KoboPage() {
       </div>
 
       {session?.email && (
-        <p style={{ fontSize: 20, marginBottom: 32 }}>
+        <p style={{ fontSize: 18, margin: "0 0 24px 0" }}>
           Collegato come <strong>{session.displayName || session.email}</strong>
         </p>
       )}
 
       {busy && <p style={{ fontSize: 22 }}>Caricamento...</p>}
 
-      {session && session.books.length === 0 && (
-        <p style={{ fontSize: 24 }}>Nessun ePub nella tua libreria.</p>
+      {session && readyBooks.length === 0 && !busy && (
+        <p style={{ fontSize: 22 }}>
+          Nessun ePub pronto. Ottimizza un libro dal telefono e tornerà qui in stato
+          "{STATUS_READY}".
+        </p>
       )}
 
-      {session && session.books.length > 0 && (
+      {readyBooks.length > 0 && (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-          {session.books.map((b) => (
+          {readyBooks.map((b) => (
             <li
               key={b.id}
               style={{
-                borderTop: "1px solid #000",
-                padding: "20px 0",
+                borderTop: "2px solid #000",
+                padding: "24px 0",
                 display: "flex",
                 gap: 20,
+                alignItems: "center",
               }}
             >
-              {b.coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={b.coverUrl}
-                  alt=""
-                  style={{ width: 80, height: 120, objectFit: "cover", border: "1px solid #000" }}
-                />
-              ) : (
-                <div
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p
                   style={{
-                    width: 80,
-                    height: 120,
-                    border: "1px solid #000",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 14,
+                    fontSize: 30,
+                    fontWeight: 700,
+                    margin: 0,
+                    lineHeight: 1.2,
                   }}
                 >
-                  ePub
-                </div>
-              )}
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>{b.titolo}</p>
-                {b.autore && (
-                  <p style={{ fontSize: 20, margin: "6px 0 0 0" }}>{b.autore}</p>
-                )}
-                <p style={{ fontSize: 16, margin: "8px 0 0 0" }}>Stato: {b.status}</p>
+                  {b.titolo}
+                  {b.autore ? (
+                    <span style={{ fontWeight: 400 }}> — {b.autore}</span>
+                  ) : null}
+                </p>
               </div>
+              <button
+                onClick={() => downloadBook(b.id)}
+                disabled={busy}
+                style={{
+                  fontSize: 26,
+                  fontWeight: 700,
+                  background: "#000",
+                  color: "#fff",
+                  border: "3px solid #000",
+                  padding: "20px 32px",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  letterSpacing: 2,
+                }}
+              >
+                DOWNLOAD
+              </button>
             </li>
           ))}
+          <li style={{ borderTop: "2px solid #000" }} />
         </ul>
       )}
 

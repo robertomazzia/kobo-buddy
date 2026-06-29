@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -9,7 +9,13 @@ import {
   getCoverDataUrl,
   type LoadedEpub,
 } from "@/lib/epub";
+import {
+  detectChapters,
+  applyChapters,
+  type DetectedChapter,
+} from "@/lib/chapters";
 import { searchCovers, fetchCoverBytes, type CoverResult } from "@/lib/covers.functions";
+import { saveProcessedEpub } from "@/lib/library.functions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
+import { ChevronLeft, Check, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/optimizer")({
   head: () => ({
@@ -25,19 +32,14 @@ export const Route = createFileRoute("/_authenticated/optimizer")({
       {
         name: "description",
         content:
-          "Carica, ottimizza e ripara i tuoi ePub per Kobo: correzione encoding e copertine da Open Library e Google Books.",
-      },
-      { property: "og:title", content: "Kobo ePub Optimizer" },
-      {
-        property: "og:description",
-        content: "Correggi accenti, sostituisci copertine e prepara i tuoi ePub per Kobo.",
+          "Carica, ottimizza e ripara i tuoi ePub per Kobo: correzione encoding, copertine e indice dei capitoli.",
       },
     ],
   }),
-  component: Index,
+  component: Optimizer,
 });
 
-function Index() {
+function Optimizer() {
   const [epub, setEpubState] = useState<LoadedEpub | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -46,10 +48,14 @@ function Index() {
   const [searchTitle, setSearchTitle] = useState("");
   const [searchAuthor, setSearchAuthor] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [chapters, setChapters] = useState<DetectedChapter[] | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const searchCoversFn = useServerFn(searchCovers);
   const fetchCoverFn = useServerFn(fetchCoverBytes);
+  const saveFn = useServerFn(saveProcessedEpub);
 
   useEffect(() => {
     return () => {
@@ -70,6 +76,8 @@ function Index() {
       setBusy("Ispezione ePub…");
       setEncodingFixed(null);
       setCovers(null);
+      setChapters(null);
+      setSaved(false);
       try {
         const loaded = await loadEpub(file);
         setEpubState(loaded);
@@ -106,6 +114,32 @@ function Index() {
     }
   };
 
+  const onDetectChapters = async () => {
+    if (!epub) return;
+    setBusy("Analisi capitoli…");
+    try {
+      const detected = await detectChapters(epub);
+      setChapters(detected);
+      toast.success(`${detected.length} punti trovati, ${detected.filter((c) => c.selected).length} pre-selezionati`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Analisi fallita");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggleChapter = (id: string) => {
+    setChapters((prev) =>
+      prev ? prev.map((c) => (c.id === id ? { ...c, selected: !c.selected } : c)) : prev,
+    );
+  };
+
+  const renameChapter = (id: string, title: string) => {
+    setChapters((prev) =>
+      prev ? prev.map((c) => (c.id === id ? { ...c, title } : c)) : prev,
+    );
+  };
+
   const onSearchCovers = async () => {
     setBusy("Ricerca copertine…");
     try {
@@ -139,19 +173,39 @@ function Index() {
     }
   };
 
-  const onDownload = async () => {
-    if (!epub) return;
-    setBusy("Generazione ePub…");
+  const onConfirmAndSave = async () => {
+    if (!epub || !chapters) return;
+    const selected = chapters.filter((c) => c.selected);
+    if (selected.length === 0) {
+      toast.error("Seleziona almeno un capitolo");
+      return;
+    }
+    setBusy("Generazione ePub finale…");
     try {
+      await applyChapters(epub, selected);
       const blob = await packEpub(epub);
-      const a = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      a.href = url;
-      a.download = epub.fileName.replace(/\.epub$/i, "") + ".kobo.epub";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      // base64 encode chunked to avoid stack overflow
+      let bin = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < buf.length; i += chunk) {
+        bin += String.fromCharCode(...buf.subarray(i, i + chunk));
+      }
+      const fileBase64 = btoa(bin);
+
+      await saveFn({
+        data: {
+          titolo: searchTitle || epub.meta.title,
+          autore: searchAuthor || epub.meta.author,
+          fileName: epub.fileName,
+          fileBase64,
+          coverDataUrl: null,
+        },
+      });
+      setSaved(true);
+      toast.success("ePub salvato e pronto per Kobo");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Salvataggio fallito");
     } finally {
       setBusy(null);
     }
@@ -161,11 +215,18 @@ function Index() {
     <div className="min-h-screen bg-background pb-24">
       <Toaster richColors position="top-center" />
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto max-w-3xl px-4 py-3">
-          <h1 className="text-lg font-semibold tracking-tight">Kobo ePub Optimizer</h1>
-          <p className="text-xs text-muted-foreground">
-            Correggi encoding, sostituisci copertine, pronto per Kobo.
-          </p>
+        <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-3">
+          <Link to="/dashboard">
+            <Button size="icon" variant="ghost" aria-label="Indietro">
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold tracking-tight">Kobo ePub Optimizer</h1>
+            <p className="text-xs text-muted-foreground">
+              Encoding · copertina · capitoli · pubblicazione
+            </p>
+          </div>
         </div>
       </header>
 
@@ -218,15 +279,17 @@ function Index() {
                   <div className="truncate text-xs text-muted-foreground">{epub.meta.author}</div>
                   <div className="flex flex-wrap gap-1 pt-1">
                     <Badge variant={epub.meta.coverPath ? "default" : "destructive"}>
-                      {epub.meta.coverPath ? "Cover presente" : "Cover mancante"}
+                      {epub.meta.coverPath ? "Cover" : "No cover"}
                     </Badge>
                     <Badge variant={epub.encodingIssues.length ? "destructive" : "secondary"}>
                       {epub.encodingIssues.length
-                        ? `${epub.encodingIssues.length} file con problemi`
+                        ? `${epub.encodingIssues.length} file mojibake`
                         : "Encoding OK"}
                     </Badge>
-                    {epub.meta.language && (
-                      <Badge variant="outline">{epub.meta.language}</Badge>
+                    {chapters && (
+                      <Badge variant="outline">
+                        {chapters.filter((c) => c.selected).length}/{chapters.length} capitoli
+                      </Badge>
                     )}
                   </div>
                 </div>
@@ -245,19 +308,6 @@ function Index() {
                   Ripara
                 </Button>
               </div>
-              {epub.encodingIssues.length > 0 && encodingFixed === null && (
-                <div className="rounded-md bg-muted/50 p-2 text-xs">
-                  <div className="mb-1 font-medium">Esempi rilevati:</div>
-                  <ul className="space-y-0.5">
-                    {epub.encodingIssues.slice(0, 4).map((i) => (
-                      <li key={i.path} className="truncate">
-                        <span className="text-muted-foreground">{i.path.split("/").pop()}:</span>{" "}
-                        <code className="text-destructive">{i.samples.join(", ")}</code>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
               {encodingFixed !== null && (
                 <div className="text-xs text-green-600">
                   ✓ {encodingFixed} file riscritti in UTF-8
@@ -269,24 +319,12 @@ function Index() {
               <div className="text-sm font-semibold">Copertina</div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
                 <div>
-                  <Label htmlFor="t" className="text-xs">
-                    Titolo
-                  </Label>
-                  <Input
-                    id="t"
-                    value={searchTitle}
-                    onChange={(e) => setSearchTitle(e.target.value)}
-                  />
+                  <Label htmlFor="t" className="text-xs">Titolo</Label>
+                  <Input id="t" value={searchTitle} onChange={(e) => setSearchTitle(e.target.value)} />
                 </div>
                 <div>
-                  <Label htmlFor="a" className="text-xs">
-                    Autore
-                  </Label>
-                  <Input
-                    id="a"
-                    value={searchAuthor}
-                    onChange={(e) => setSearchAuthor(e.target.value)}
-                  />
+                  <Label htmlFor="a" className="text-xs">Autore</Label>
+                  <Input id="a" value={searchAuthor} onChange={(e) => setSearchAuthor(e.target.value)} />
                 </div>
                 <div className="flex items-end">
                   <Button onClick={onSearchCovers} disabled={!!busy} className="w-full">
@@ -294,7 +332,6 @@ function Index() {
                   </Button>
                 </div>
               </div>
-
               {covers && covers.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {covers.map((c) => (
@@ -319,6 +356,70 @@ function Index() {
               )}
             </Card>
 
+            <Card className="space-y-3 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-semibold">Indice dei capitoli</div>
+                  <div className="text-xs text-muted-foreground">
+                    Analisi euristica: titoli, grassetti isolati, parole chiave, salti di pagina.
+                  </div>
+                </div>
+                <Button size="sm" onClick={onDetectChapters} disabled={!!busy}>
+                  {chapters ? "Rianalizza" : "Analizza"}
+                </Button>
+              </div>
+
+              {chapters && chapters.length === 0 && (
+                <p className="text-xs text-muted-foreground">Nessun capitolo individuato.</p>
+              )}
+
+              {chapters && chapters.length > 0 && (
+                <ul className="divide-y rounded-md border">
+                  {chapters.map((c) => (
+                    <li key={c.id} className="flex items-start gap-3 p-2.5">
+                      <input
+                        type="checkbox"
+                        checked={c.selected}
+                        onChange={() => toggleChapter(c.id)}
+                        className="mt-1.5 h-4 w-4 shrink-0 accent-primary"
+                        aria-label="Seleziona capitolo"
+                      />
+                      <div className="min-w-0 flex-1">
+                        {editingId === c.id ? (
+                          <Input
+                            autoFocus
+                            value={c.title}
+                            onChange={(e) => renameChapter(c.id, e.target.value)}
+                            onBlur={() => setEditingId(null)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === "Escape") setEditingId(null);
+                            }}
+                            className="h-8 text-sm"
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setEditingId(c.id)}
+                            className="block w-full text-left"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-sm font-medium">{c.title}</span>
+                              <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" />
+                            </div>
+                          </button>
+                        )}
+                        <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                          <span className="rounded bg-muted px-1.5 py-0.5 uppercase">
+                            {labelFor(c.source)}
+                          </span>
+                          <span className="truncate">{c.href.split("/").pop()}</span>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+
             <div className="sticky bottom-3 flex gap-2">
               <Button
                 variant="outline"
@@ -328,13 +429,25 @@ function Index() {
                   setCoverUrl(null);
                   setCovers(null);
                   setEncodingFixed(null);
+                  setChapters(null);
+                  setSaved(false);
                 }}
                 disabled={!!busy}
               >
                 Nuovo file
               </Button>
-              <Button className="flex-1" onClick={onDownload} disabled={!!busy}>
-                Scarica .epub
+              <Button
+                className="flex-1"
+                onClick={onConfirmAndSave}
+                disabled={!!busy || !chapters || saved}
+              >
+                {saved ? (
+                  <>
+                    <Check className="h-4 w-4" /> Pronto per Kobo
+                  </>
+                ) : (
+                  "Conferma e Genera"
+                )}
               </Button>
             </div>
           </>
@@ -350,5 +463,13 @@ function Index() {
   );
 }
 
-// silence unused warning
-void useRouter;
+function labelFor(source: DetectedChapter["source"]): string {
+  switch (source) {
+    case "heading": return "H";
+    case "bold": return "B";
+    case "keyword": return "KW";
+    case "break": return "BR";
+    case "toc": return "TOC";
+    case "fallback": return "—";
+  }
+}
