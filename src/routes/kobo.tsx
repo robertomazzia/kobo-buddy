@@ -14,7 +14,7 @@ export const Route = createFileRoute("/kobo")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Kobo – La tua libreria" },
+      { title: "Kobo - La tua libreria" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
     ],
   }),
@@ -31,12 +31,16 @@ function KoboPage() {
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [session, setSession] = useState<KoboSession | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const t = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+    const t =
+      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
     if (t) {
       setToken(t);
       loadSession(t);
+    } else {
+      setReady(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -53,8 +57,11 @@ function KoboPage() {
       } else {
         setSession(res);
       }
+    } catch {
+      setError("Errore di rete");
     } finally {
       setBusy(false);
+      setReady(true);
     }
   }
 
@@ -83,6 +90,7 @@ function KoboPage() {
     setToken(null);
     setSession(null);
     setPin("");
+    setError("");
   }
 
   async function downloadBook(id: string) {
@@ -94,7 +102,6 @@ function KoboPage() {
       if ("error" in res) {
         setError(res.error);
       } else {
-        // Trigger download on the Kobo browser
         window.location.href = res.url;
       }
     } catch {
@@ -104,174 +111,116 @@ function KoboPage() {
     }
   }
 
-  // E-Ink rules: pure white background, pure black text, no gradients/animations.
-  const page: React.CSSProperties = {
-    minHeight: "100vh",
-    background: "#ffffff",
-    color: "#000000",
-    fontFamily: "Georgia, 'Times New Roman', serif",
-    padding: "40px 24px",
-    maxWidth: 900,
-    margin: "0 auto",
-  };
-
+  // Schermata A: inserimento PIN
   if (!token) {
     return (
-      <div style={page}>
-        <h1 style={{ fontSize: 44, fontWeight: 700, marginBottom: 24, margin: 0 }}>
-          Accoppia il Kobo
-        </h1>
-        <p style={{ fontSize: 22, lineHeight: 1.4, margin: "20px 0 32px" }}>
-          Inserisci il codice PIN mostrato sul tuo telefono per collegare questo
+      <div className="bg-white text-black min-h-screen p-6">
+        <h1 className="text-4xl font-bold mb-6">Accoppia il Kobo</h1>
+        <p className="text-2xl mb-6">
+          Inserisci il codice PIN mostrato sul telefono per collegare questo
           dispositivo alla tua libreria.
         </p>
         <form onSubmit={submitPin}>
+          <label htmlFor="pin" className="block text-2xl mb-2">
+            Codice PIN
+          </label>
           <input
+            id="pin"
+            name="pin"
+            type="text"
             value={pin}
             onChange={(e) => setPin(e.target.value.toUpperCase())}
             maxLength={4}
             autoFocus
             placeholder="XC54"
-            style={{
-              width: "100%",
-              fontSize: 64,
-              padding: "20px 24px",
-              border: "3px solid #000",
-              background: "#fff",
-              color: "#000",
-              letterSpacing: 12,
-              textAlign: "center",
-              fontFamily: "monospace",
-              marginBottom: 24,
-              boxSizing: "border-box",
-            }}
+            className="block w-full text-5xl p-4 border-2 border-black bg-white text-black text-center mb-6"
+            style={{ letterSpacing: "0.5em", fontFamily: "monospace" }}
           />
           <button
             type="submit"
             disabled={busy || pin.length !== 4}
-            style={{
-              width: "100%",
-              fontSize: 28,
-              padding: "20px 24px",
-              background: "#000",
-              color: "#fff",
-              border: "3px solid #000",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
+            className="block w-full text-3xl font-bold p-5 border-2 border-black bg-black text-white"
           >
-            {busy ? "Verifica in corso..." : "Conferma PIN"}
+            {busy ? "Verifica..." : "Conferma PIN"}
           </button>
         </form>
         {error && (
-          <p style={{ fontSize: 22, marginTop: 24, border: "2px solid #000", padding: 16 }}>
-            {error}
-          </p>
+          <p className="text-2xl mt-6 border-2 border-black p-4">{error}</p>
         )}
       </div>
     );
   }
 
-  const readyBooks = (session?.books ?? []).filter((b) => b.status === STATUS_READY);
+  // Schermata B: libreria
+  const readyBooks = (session?.books ?? []).filter(
+    (b) => b.status === STATUS_READY,
+  );
 
   return (
-    <div style={page}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          marginBottom: 24,
-          borderBottom: "3px solid #000",
-          paddingBottom: 16,
-        }}
-      >
-        <h1 style={{ fontSize: 38, fontWeight: 700, margin: 0 }}>La tua libreria</h1>
-        <button
-          onClick={unpair}
-          style={{
-            fontSize: 18,
-            background: "#fff",
-            color: "#000",
-            border: "2px solid #000",
-            padding: "8px 16px",
-            cursor: "pointer",
-          }}
-        >
-          Disconnetti
-        </button>
+    <div className="bg-white text-black min-h-screen p-6">
+      <div className="border-b-2 border-black pb-4 mb-6">
+        <h1 className="text-4xl font-bold mb-2">La tua libreria</h1>
+        {session?.email && (
+          <p className="text-xl">
+            Collegato come {session.displayName || session.email}
+          </p>
+        )}
+        <p className="mt-3">
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              unpair();
+            }}
+            className="text-xl underline"
+          >
+            [Esci]
+          </a>
+        </p>
       </div>
 
-      {session?.email && (
-        <p style={{ fontSize: 18, margin: "0 0 24px 0" }}>
-          Collegato come <strong>{session.displayName || session.email}</strong>
-        </p>
-      )}
+      {!ready || busy ? (
+        <p className="text-2xl">Caricamento...</p>
+      ) : null}
 
-      {busy && <p style={{ fontSize: 22 }}>Caricamento...</p>}
-
-      {session && readyBooks.length === 0 && !busy && (
-        <p style={{ fontSize: 22 }}>
-          Nessun ePub pronto. Ottimizza un libro dal telefono e tornerà qui in stato
-          "{STATUS_READY}".
+      {ready && session && readyBooks.length === 0 && !busy && (
+        <p className="text-2xl">
+          Nessun ePub pronto. Ottimizza un libro dal telefono e tornera qui in
+          stato "{STATUS_READY}".
         </p>
       )}
 
       {readyBooks.length > 0 && (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        <ul className="list-none p-0 m-0">
           {readyBooks.map((b) => (
             <li
               key={b.id}
-              style={{
-                borderTop: "2px solid #000",
-                padding: "24px 0",
-                display: "flex",
-                gap: 20,
-                alignItems: "center",
-              }}
+              className="border-t-2 border-black py-5 flex items-center gap-4"
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p
-                  style={{
-                    fontSize: 30,
-                    fontWeight: 700,
-                    margin: 0,
-                    lineHeight: 1.2,
-                  }}
-                >
+              <div className="flex-1 min-w-0">
+                <p className="text-2xl font-bold m-0">
                   {b.titolo}
                   {b.autore ? (
-                    <span style={{ fontWeight: 400 }}> — {b.autore}</span>
+                    <span className="font-normal"> - {b.autore}</span>
                   ) : null}
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => downloadBook(b.id)}
                 disabled={busy}
-                style={{
-                  fontSize: 26,
-                  fontWeight: 700,
-                  background: "#000",
-                  color: "#fff",
-                  border: "3px solid #000",
-                  padding: "20px 32px",
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  letterSpacing: 2,
-                }}
+                className="text-2xl font-bold bg-black text-white border-2 border-black px-6 py-4"
               >
                 DOWNLOAD
               </button>
             </li>
           ))}
-          <li style={{ borderTop: "2px solid #000" }} />
+          <li className="border-t-2 border-black" />
         </ul>
       )}
 
       {error && (
-        <p style={{ fontSize: 20, marginTop: 24, border: "2px solid #000", padding: 16 }}>
-          {error}
-        </p>
+        <p className="text-xl mt-6 border-2 border-black p-4">{error}</p>
       )}
     </div>
   );
