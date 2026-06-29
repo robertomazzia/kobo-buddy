@@ -1,6 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -32,34 +30,45 @@ export const Route = createFileRoute("/api/public/kobo/library")({
         }
         if (!token) return json({ error: "Sessione mancante" }, 401);
 
-        const sb = createClient<Database>(
-          process.env.SUPABASE_URL!,
-          process.env.SUPABASE_PUBLISHABLE_KEY!,
-          { auth: { persistSession: false, autoRefreshToken: false } },
-        );
-        const { data: owner, error: e1 } = await sb
-          .rpc("kobo_session_owner", { _token: token })
-          .maybeSingle();
-        if (e1 || !owner) return json({ error: "Sessione non valida" }, 401);
+        try {
+          const { supabaseAdmin } = await import(
+            "@/integrations/supabase/client.server"
+          );
+          const { data: owner, error: e1 } = await supabaseAdmin
+            .rpc("kobo_session_owner", { _token: token })
+            .maybeSingle();
+          if (e1) {
+            console.error("[kobo.library] owner rpc error", e1);
+            return json({ error: "Sessione non valida" }, 401);
+          }
+          if (!owner) return json({ error: "Sessione non valida" }, 401);
 
-        const { data: books, error: e2 } = await sb.rpc("kobo_session_books", {
-          _token: token,
-        });
-        if (e2) return json({ error: "Errore caricamento libreria" }, 500);
+          const { data: books, error: e2 } = await supabaseAdmin.rpc(
+            "kobo_session_books",
+            { _token: token },
+          );
+          if (e2) {
+            console.error("[kobo.library] books rpc error", e2);
+            return json({ error: "Errore caricamento libreria" }, 500);
+          }
 
-        const ready = (books ?? [])
-          .filter((b) => b.status === STATUS_READY)
-          .map((b) => ({
-            id: b.id,
-            titolo: b.titolo,
-            autore: b.autore ?? "",
-          }));
+          const ready = (books ?? [])
+            .filter((b) => b.status === STATUS_READY)
+            .map((b) => ({
+              id: b.id,
+              titolo: b.titolo,
+              autore: b.autore ?? "",
+            }));
 
-        return json({
-          email: owner.email,
-          displayName: owner.display_name,
-          books: ready,
-        });
+          return json({
+            email: owner.email,
+            displayName: owner.display_name,
+            books: ready,
+          });
+        } catch (err) {
+          console.error("[kobo.library] unexpected", err);
+          return json({ error: "Errore caricamento libreria" }, 500);
+        }
       },
     },
   },

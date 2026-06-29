@@ -1,6 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -37,41 +35,45 @@ export const Route = createFileRoute("/api/public/kobo/download")({
         }
         if (!token || !ebookId) return json({ error: "Parametri mancanti" }, 400);
 
-        const sb = createClient<Database>(
-          process.env.SUPABASE_URL!,
-          process.env.SUPABASE_PUBLISHABLE_KEY!,
-          { auth: { persistSession: false, autoRefreshToken: false } },
-        );
-        const { data: owner, error: e1 } = await sb
-          .rpc("kobo_session_owner", { _token: token })
-          .maybeSingle();
-        if (e1 || !owner) return json({ error: "Sessione non valida" }, 401);
+        try {
+          const { supabaseAdmin } = await import(
+            "@/integrations/supabase/client.server"
+          );
+          const { data: owner, error: e1 } = await supabaseAdmin
+            .rpc("kobo_session_owner", { _token: token })
+            .maybeSingle();
+          if (e1 || !owner) return json({ error: "Sessione non valida" }, 401);
 
-        const { supabaseAdmin } = await import(
-          "@/integrations/supabase/client.server"
-        );
-        const { data: ebook, error: e2 } = await supabaseAdmin
-          .from("ebooks")
-          .select("id, user_id, file_path, titolo, status")
-          .eq("id", ebookId)
-          .maybeSingle();
-        if (e2 || !ebook) return json({ error: "ePub non trovato" }, 404);
-        if (ebook.user_id !== owner.user_id)
-          return json({ error: "Accesso negato" }, 403);
-        if (!ebook.file_path) return json({ error: "File non disponibile" }, 404);
-        if (ebook.status !== STATUS_READY)
-          return json({ error: "ePub non pronto" }, 409);
+          const { data: ebook, error: e2 } = await supabaseAdmin
+            .from("ebooks")
+            .select("id, user_id, file_path, titolo, status")
+            .eq("id", ebookId)
+            .maybeSingle();
+          if (e2 || !ebook) return json({ error: "ePub non trovato" }, 404);
+          if (ebook.user_id !== owner.user_id)
+            return json({ error: "Accesso negato" }, 403);
+          if (!ebook.file_path)
+            return json({ error: "File non disponibile" }, 404);
+          if (ebook.status !== STATUS_READY)
+            return json({ error: "ePub non pronto" }, 409);
 
-        const safe = (ebook.titolo || "book").replace(/[^a-zA-Z0-9._-]+/g, "_");
-        const { data: signed, error: e3 } = await supabaseAdmin.storage
-          .from("ebooks")
-          .createSignedUrl(ebook.file_path, 300, {
-            download: `${safe}.epub`,
-          });
-        if (e3 || !signed?.signedUrl)
-          return json({ error: "Impossibile generare il link" }, 500);
+          const safe = (ebook.titolo || "book").replace(
+            /[^a-zA-Z0-9._-]+/g,
+            "_",
+          );
+          const { data: signed, error: e3 } = await supabaseAdmin.storage
+            .from("ebooks")
+            .createSignedUrl(ebook.file_path, 300, {
+              download: `${safe}.epub`,
+            });
+          if (e3 || !signed?.signedUrl)
+            return json({ error: "Impossibile generare il link" }, 500);
 
-        return json({ url: signed.signedUrl, fileName: `${safe}.epub` });
+          return json({ url: signed.signedUrl, fileName: `${safe}.epub` });
+        } catch (err) {
+          console.error("[kobo.download] unexpected", err);
+          return json({ error: "Errore durante il download" }, 500);
+        }
       },
     },
   },
