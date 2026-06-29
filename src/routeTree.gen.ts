@@ -15,6 +15,9 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedOptimizerRouteImport } from './routes/_authenticated/optimizer'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as ApiPublicKoboRedeemRouteImport } from './routes/api/public/kobo.redeem'
+import { Route as ApiPublicKoboLibraryRouteImport } from './routes/api/public/kobo.library'
+import { Route as ApiPublicKoboDownloadRouteImport } from './routes/api/public/kobo.download'
 
 const KoboRoute = KoboRouteImport.update({
   id: '/kobo',
@@ -45,6 +48,21 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicKoboRedeemRoute = ApiPublicKoboRedeemRouteImport.update({
+  id: '/api/public/kobo/redeem',
+  path: '/api/public/kobo/redeem',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicKoboLibraryRoute = ApiPublicKoboLibraryRouteImport.update({
+  id: '/api/public/kobo/library',
+  path: '/api/public/kobo/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicKoboDownloadRoute = ApiPublicKoboDownloadRouteImport.update({
+  id: '/api/public/kobo/download',
+  path: '/api/public/kobo/download',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -52,6 +70,9 @@ export interface FileRoutesByFullPath {
   '/kobo': typeof KoboRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/optimizer': typeof AuthenticatedOptimizerRoute
+  '/api/public/kobo/download': typeof ApiPublicKoboDownloadRoute
+  '/api/public/kobo/library': typeof ApiPublicKoboLibraryRoute
+  '/api/public/kobo/redeem': typeof ApiPublicKoboRedeemRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -59,6 +80,9 @@ export interface FileRoutesByTo {
   '/kobo': typeof KoboRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/optimizer': typeof AuthenticatedOptimizerRoute
+  '/api/public/kobo/download': typeof ApiPublicKoboDownloadRoute
+  '/api/public/kobo/library': typeof ApiPublicKoboLibraryRoute
+  '/api/public/kobo/redeem': typeof ApiPublicKoboRedeemRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,12 +92,31 @@ export interface FileRoutesById {
   '/kobo': typeof KoboRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/optimizer': typeof AuthenticatedOptimizerRoute
+  '/api/public/kobo/download': typeof ApiPublicKoboDownloadRoute
+  '/api/public/kobo/library': typeof ApiPublicKoboLibraryRoute
+  '/api/public/kobo/redeem': typeof ApiPublicKoboRedeemRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/kobo' | '/dashboard' | '/optimizer'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/kobo'
+    | '/dashboard'
+    | '/optimizer'
+    | '/api/public/kobo/download'
+    | '/api/public/kobo/library'
+    | '/api/public/kobo/redeem'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/kobo' | '/dashboard' | '/optimizer'
+  to:
+    | '/'
+    | '/auth'
+    | '/kobo'
+    | '/dashboard'
+    | '/optimizer'
+    | '/api/public/kobo/download'
+    | '/api/public/kobo/library'
+    | '/api/public/kobo/redeem'
   id:
     | '__root__'
     | '/'
@@ -82,6 +125,9 @@ export interface FileRouteTypes {
     | '/kobo'
     | '/_authenticated/dashboard'
     | '/_authenticated/optimizer'
+    | '/api/public/kobo/download'
+    | '/api/public/kobo/library'
+    | '/api/public/kobo/redeem'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -89,6 +135,9 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   KoboRoute: typeof KoboRoute
+  ApiPublicKoboDownloadRoute: typeof ApiPublicKoboDownloadRoute
+  ApiPublicKoboLibraryRoute: typeof ApiPublicKoboLibraryRoute
+  ApiPublicKoboRedeemRoute: typeof ApiPublicKoboRedeemRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -135,6 +184,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/kobo/redeem': {
+      id: '/api/public/kobo/redeem'
+      path: '/api/public/kobo/redeem'
+      fullPath: '/api/public/kobo/redeem'
+      preLoaderRoute: typeof ApiPublicKoboRedeemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/kobo/library': {
+      id: '/api/public/kobo/library'
+      path: '/api/public/kobo/library'
+      fullPath: '/api/public/kobo/library'
+      preLoaderRoute: typeof ApiPublicKoboLibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/kobo/download': {
+      id: '/api/public/kobo/download'
+      path: '/api/public/kobo/download'
+      fullPath: '/api/public/kobo/download'
+      preLoaderRoute: typeof ApiPublicKoboDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -156,6 +226,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   KoboRoute: KoboRoute,
+  ApiPublicKoboDownloadRoute: ApiPublicKoboDownloadRoute,
+  ApiPublicKoboLibraryRoute: ApiPublicKoboLibraryRoute,
+  ApiPublicKoboRedeemRoute: ApiPublicKoboRedeemRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
