@@ -22,6 +22,7 @@ import {
   type KoboDevice,
 } from "@/lib/kobo.functions";
 import { QuickUpload } from "@/components/QuickUpload";
+import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
