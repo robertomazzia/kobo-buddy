@@ -57,14 +57,18 @@ function Dashboard() {
     }
   }, [listDevices]);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+  const refreshCounts = useCallback(() => {
     supabase
       .from("ebooks")
       .select("id", { count: "exact", head: true })
       .then(({ count }) => setCounts((c) => ({ ...c, ebooks: count ?? 0 })));
+  }, []);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+    refreshCounts();
     refresh();
-  }, [refresh]);
+  }, [refresh, refreshCounts]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
