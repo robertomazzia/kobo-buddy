@@ -105,6 +105,7 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted">
+      <Toaster richColors position="top-center" />
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b">
         <div className="max-w-md mx-auto flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
