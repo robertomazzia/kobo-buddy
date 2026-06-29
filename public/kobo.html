@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La tua libreria</title>
+<style>
+  html, body { background:#ffffff; color:#000000; margin:0; padding:0; }
+  body { font-family: Georgia, "Times New Roman", serif; font-size:20px; padding:20px; }
+  h1 { font-size:30px; margin:0 0 18px 0; }
+  p  { margin:0 0 14px 0; line-height:1.4; }
+  .err { border:2px solid #000; padding:14px; margin-top:18px; font-size:18px; }
+  .info { font-size:16px; margin-bottom:18px; }
+  label { display:block; font-size:20px; margin:0 0 8px 0; }
+  input.pin {
+    display:block; width:100%; box-sizing:border-box;
+    font-family: monospace; font-size:34px; letter-spacing:8px;
+    padding:14px; border:2px solid #000; text-align:center;
+    background:#fff; color:#000; margin:0 0 14px 0;
+  }
+  button.primary, a.primary {
+    display:block; width:100%; box-sizing:border-box;
+    background:#000; color:#fff; border:2px solid #000;
+    font-size:22px; font-weight:bold; padding:18px;
+    text-align:center; text-decoration:none; margin-top:8px;
+    -webkit-appearance:none; appearance:none; cursor:pointer;
+  }
+  a.logout { display:inline-block; color:#000; font-size:16px;
+             padding:8px 0; text-decoration:underline; }
+  table.books { width:100%; border-collapse:collapse; margin-top:10px; }
+  table.books td { border-top:2px solid #000; padding:16px 0;
+                   vertical-align:middle; font-size:20px; }
+  td.dl { width:160px; text-align:right; }
+  a.dl { display:inline-block; padding:14px 18px;
+         background:#000; color:#fff; text-decoration:none;
+         font-weight:bold; font-size:20px; border:2px solid #000; }
+  .title { font-weight:bold; }
+  .author { font-weight:normal; }
+</style>
+</head>
+<body>
+<div id="root">Caricamento...</div>
+
+<script>
+/* Vanilla ES5 — must run on the old WebKit shipped with Kobo Aura HD / Clara BW. */
+var sessionToken = null;
+try { sessionToken = window.localStorage.getItem('kobo_t'); } catch (e) { sessionToken = null; }
+
+function el(id) { return document.getElementById(id); }
+function setRoot(html) { el('root').innerHTML = html; }
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function xhrPost(url, payload, cb) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', url, true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState !== 4) return;
+    var data = null;
+    try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
+    cb(xhr.status, data);
+  };
+  try { xhr.send(JSON.stringify(payload)); }
+  catch (e) { cb(0, null); }
+}
+
+function renderPin(errorMsg) {
+  var html = ''
+    + '<h1>Accoppia il Kobo</h1>'
+    + '<p>Inserisci il codice PIN mostrato sul telefono per collegare questo dispositivo alla tua libreria.</p>'
+    + '<form id="pinForm" onsubmit="return handlePin();">'
+    +   '<label for="pin">Codice PIN</label>'
+    +   '<input id="pin" name="pin" class="pin" type="text" maxlength="4" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" value="">'
+    +   '<button type="submit" class="primary" id="pinBtn">Conferma PIN</button>'
+    + '</form>'
+    + '<div id="error">' + (errorMsg ? '<div class="err">' + esc(errorMsg) + '</div>' : '') + '</div>';
+  setRoot(html);
+  try { el('pin').focus(); } catch (e) {}
+}
+
+function handlePin() {
+  var input = el('pin');
+  var btn = el('pinBtn');
+  var val = (input.value || '').replace(/\s+/g, '').toUpperCase();
+  if (val.length !== 4) {
+    el('error').innerHTML = '<div class="err">Il PIN deve avere 4 caratteri.</div>';
+    return false;
+  }
+  btn.disabled = true;
+  btn.innerHTML = 'Verifica...';
+  el('error').innerHTML = '';
+  xhrPost('/api/public/kobo/redeem', { pin: val }, function (status, data) {
+    if (status === 200 && data && data.token) {
+      sessionToken = data.token;
+      try { window.localStorage.setItem('kobo_t', sessionToken); } catch (e) {}
+      renderLibrary();
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = 'Conferma PIN';
+      var msg = (data && data.error) ? data.error : 'Errore di rete';
+      el('error').innerHTML = '<div class="err">' + esc(msg) + '</div>';
+    }
+  });
+  return false;
+}
+
+function logout() {
+  sessionToken = null;
+  try { window.localStorage.removeItem('kobo_t'); } catch (e) {}
+  renderPin('');
+  return false;
+}
+
+function renderLibrary() {
+  setRoot('<h1>La tua libreria</h1><p>Caricamento...</p>');
+  xhrPost('/api/public/kobo/library', { token: sessionToken }, function (status, data) {
+    if (status === 401) {
+      sessionToken = null;
+      try { window.localStorage.removeItem('kobo_t'); } catch (e) {}
+      renderPin('Sessione scaduta. Inserisci di nuovo il PIN.');
+      return;
+    }
+    if (status !== 200 || !data) {
+      setRoot('<h1>La tua libreria</h1><div class="err">Errore di rete. Aggiorna la pagina.</div>');
+      return;
+    }
+    var header = ''
+      + '<h1>La tua libreria</h1>'
+      + '<p class="info">Collegato come ' + esc(data.displayName || data.email || 'utente')
+      + ' &nbsp; <a href="#" class="logout" onclick="return logout();">[Esci]</a></p>';
+
+    var books = data.books || [];
+    if (books.length === 0) {
+      setRoot(header + '<p>Nessun ePub pronto. Ottimizza un libro dal telefono e tornera qui.</p>');
+      return;
+    }
+    var rows = '';
+    for (var i = 0; i < books.length; i++) {
+      var b = books[i];
+      var label = esc(b.titolo);
+      if (b.autore) label += ' <span class="author">- ' + esc(b.autore) + '</span>';
+      rows += '<tr>'
+            + '<td><span class="title">' + label + '</span></td>'
+            + '<td class="dl"><a class="dl" href="#" onclick="return startDownload(\'' + esc(b.id) + '\');">DOWNLOAD</a></td>'
+            + '</tr>';
+    }
+    setRoot(header + '<table class="books">' + rows + '</table><div id="error"></div>');
+  });
+}
+
+function startDownload(id) {
+  var errBox = el('error');
+  if (errBox) errBox.innerHTML = '';
+  xhrPost('/api/public/kobo/download', { token: sessionToken, ebookId: id }, function (status, data) {
+    if (status === 401) {
+      sessionToken = null;
+      try { window.localStorage.removeItem('kobo_t'); } catch (e) {}
+      renderPin('Sessione scaduta. Inserisci di nuovo il PIN.');
+      return;
+    }
+    if (status === 200 && data && data.url) {
+      window.location.href = data.url;
+      return;
+    }
+    var msg = (data && data.error) ? data.error : 'Errore durante il download';
+    if (errBox) errBox.innerHTML = '<div class="err">' + esc(msg) + '</div>';
+  });
+  return false;
+}
+
+function boot() {
+  if (sessionToken) { renderLibrary(); } else { renderPin(''); }
+}
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  boot();
+} else if (window.addEventListener) {
+  window.addEventListener('DOMContentLoaded', boot, false);
+} else {
+  window.onload = boot;
+}
+</script>
+</body>
+</html>
