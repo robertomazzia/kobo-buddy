@@ -58,6 +58,8 @@ export const Route = createFileRoute("/api/public/kobo/library")({
               id: b.id,
               titolo: b.titolo,
               autore: b.autore ?? "",
+              caricato_il: b.caricato_il,
+              is_modified: b.is_modified,
             }));
 
           return json({

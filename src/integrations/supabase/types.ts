@@ -38,30 +38,36 @@ export type Database = {
       ebooks: {
         Row: {
           autore: string | null
+          caricato_il: string
           cover_url: string | null
           creato_il: string
           file_path: string | null
           id: string
+          is_modified: boolean
           status: string
           titolo: string
           user_id: string
         }
         Insert: {
           autore?: string | null
+          caricato_il?: string
           cover_url?: string | null
           creato_il?: string
           file_path?: string | null
           id?: string
+          is_modified?: boolean
           status?: string
           titolo: string
           user_id: string
         }
         Update: {
           autore?: string | null
+          caricato_il?: string
           cover_url?: string | null
           creato_il?: string
           file_path?: string | null
           id?: string
+          is_modified?: boolean
           status?: string
           titolo?: string
           user_id?: string
@@ -132,11 +138,18 @@ export type Database = {
         Args: { _token: string }
         Returns: {
           autore: string
+          caricato_il: string
           cover_url: string
-          creato_il: string
           id: string
+          is_modified: boolean
           status: string
           titolo: string
+        }[]
+      }
+      kobo_session_delete_book: {
+        Args: { _ebook_id: string; _token: string }
+        Returns: {
+          file_path: string
         }[]
       }
       kobo_session_owner: {

@@ -17,6 +17,7 @@ export interface SaveEbookInput {
   fileBase64: string;
   fileName: string;
   coverDataUrl?: string | null;
+  isModified?: boolean;
 }
 
 export const saveProcessedEpub = createServerFn({ method: "POST" })
@@ -27,6 +28,7 @@ export const saveProcessedEpub = createServerFn({ method: "POST" })
     fileBase64: String(d.fileBase64 ?? ""),
     fileName: String(d.fileName ?? "book.epub").slice(0, 200),
     coverDataUrl: d.coverDataUrl ? String(d.coverDataUrl).slice(0, 2_000_000) : null,
+    isModified: !!d.isModified,
   }))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -51,11 +53,54 @@ export const saveProcessedEpub = createServerFn({ method: "POST" })
         file_path: storagePath,
         cover_url: data.coverDataUrl ?? null,
         status: STATUS_READY,
+        is_modified: data.isModified,
       })
       .select("id")
       .single();
     if (insErr) throw new Error(`Salvataggio fallito: ${insErr.message}`);
     return { id: row.id, storagePath };
+  });
+
+export interface EbookListItem {
+  id: string;
+  titolo: string;
+  autore: string | null;
+  status: string;
+  caricato_il: string;
+  is_modified: boolean;
+  cover_url: string | null;
+}
+
+export const listEbooks = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<EbookListItem[]> => {
+    const { supabase } = context;
+    const { data, error } = await supabase
+      .from("ebooks")
+      .select("id, titolo, autore, status, caricato_il, is_modified, cover_url")
+      .order("caricato_il", { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as EbookListItem[];
+  });
+
+export const deleteEbook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => ({ id: String(d.id) }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error: e1 } = await supabase
+      .from("ebooks")
+      .select("id, file_path, user_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (e1) throw e1;
+    if (!row || row.user_id !== userId) throw new Error("Libro non trovato");
+    if (row.file_path) {
+      await supabase.storage.from("ebooks").remove([row.file_path]);
+    }
+    const { error: e2 } = await supabase.from("ebooks").delete().eq("id", data.id);
+    if (e2) throw e2;
+    return { ok: true };
   });
 
 /** Public: Kobo browser asks for a signed download URL for one of its books. */
@@ -73,7 +118,6 @@ export const getKoboDownloadUrl = createServerFn({ method: "POST" })
       .maybeSingle();
     if (e1 || !owner) return { error: "Sessione non valida" };
 
-    // Load admin only after validating the caller.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: ebook, error: e2 } = await supabaseAdmin
       .from("ebooks")

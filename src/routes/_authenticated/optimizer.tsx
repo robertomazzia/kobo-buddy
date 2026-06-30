@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -16,6 +16,7 @@ import {
 } from "@/lib/chapters";
 import { searchCovers, fetchCoverBytes, type CoverResult } from "@/lib/covers.functions";
 import { saveProcessedEpub } from "@/lib/library.functions";
+import { takePendingEpub } from "@/lib/pending-upload";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { ChevronLeft, Check, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronDown, ChevronRight, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/optimizer")({
   head: () => ({
@@ -31,8 +32,7 @@ export const Route = createFileRoute("/_authenticated/optimizer")({
       { title: "Kobo ePub Optimizer" },
       {
         name: "description",
-        content:
-          "Carica, ottimizza e ripara i tuoi ePub per Kobo: correzione encoding, copertine e indice dei capitoli.",
+        content: "Anteprima ePub con opzioni di copertina, encoding e capitoli.",
       },
     ],
   }),
@@ -40,17 +40,29 @@ export const Route = createFileRoute("/_authenticated/optimizer")({
 });
 
 function Optimizer() {
+  const navigate = useNavigate();
   const [epub, setEpubState] = useState<LoadedEpub | null>(null);
+  const [originalBytes, setOriginalBytes] = useState<Uint8Array | null>(null);
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+
+  // collapsible sections
+  const [openCover, setOpenCover] = useState(false);
+  const [openEncoding, setOpenEncoding] = useState(false);
+  const [openChapters, setOpenChapters] = useState(false);
+
+  // modification tracking
+  const [coverChanged, setCoverChanged] = useState(false);
   const [encodingFixed, setEncodingFixed] = useState<number | null>(null);
+  const [chaptersApplied, setChaptersApplied] = useState(false);
+
   const [covers, setCovers] = useState<CoverResult[] | null>(null);
   const [searchTitle, setSearchTitle] = useState("");
   const [searchAuthor, setSearchAuthor] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [chapters, setChapters] = useState<DetectedChapter[] | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const searchCoversFn = useServerFn(searchCovers);
@@ -77,9 +89,16 @@ function Optimizer() {
       setEncodingFixed(null);
       setCovers(null);
       setChapters(null);
-      setSaved(false);
+      setCoverChanged(false);
+      setChaptersApplied(false);
+      setOpenCover(false);
+      setOpenEncoding(false);
+      setOpenChapters(false);
       try {
-        const loaded = await loadEpub(file);
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        setOriginalBytes(bytes);
+        setOriginalFile(file);
+        const loaded = await loadEpub(new File([bytes as BlobPart], file.name, { type: file.type || "application/epub+zip" }));
         setEpubState(loaded);
         setSearchTitle(loaded.meta.title);
         setSearchAuthor(loaded.meta.author);
@@ -94,6 +113,12 @@ function Optimizer() {
     },
     [refreshCover],
   );
+
+  // Pick up file passed from dashboard drop zone
+  useEffect(() => {
+    const pending = takePendingEpub();
+    if (pending) void handleFile(pending);
+  }, [handleFile]);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -120,7 +145,7 @@ function Optimizer() {
     try {
       const detected = await detectChapters(epub);
       setChapters(detected);
-      toast.success(`${detected.length} punti trovati, ${detected.filter((c) => c.selected).length} pre-selezionati`);
+      toast.success(`${detected.filter((c) => c.selected).length}/${detected.length} capitoli pre-selezionati`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Analisi fallita");
     } finally {
@@ -165,6 +190,7 @@ function Optimizer() {
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       await setCover(epub, bytes, mime);
       await refreshCover(epub);
+      setCoverChanged(true);
       toast.success("Copertina aggiornata");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Impossibile applicare la copertina");
@@ -173,23 +199,31 @@ function Optimizer() {
     }
   };
 
-  const onConfirmAndSave = async () => {
-    if (!epub || !chapters) return;
-    const selected = chapters.filter((c) => c.selected);
-    if (selected.length === 0) {
-      toast.error("Seleziona almeno un capitolo");
-      return;
-    }
-    setBusy("Generazione ePub finale…");
+  const hasChanges =
+    coverChanged || encodingFixed !== null || chaptersApplied;
+
+  const onSave = async () => {
+    if (!epub || !originalBytes || !originalFile) return;
+    setBusy(hasChanges ? "Generazione ePub finale…" : "Caricamento…");
     try {
-      await applyChapters(epub, selected);
-      const blob = await packEpub(epub);
-      const buf = new Uint8Array(await blob.arrayBuffer());
-      // base64 encode chunked to avoid stack overflow
+      let bytes: Uint8Array = originalBytes;
+
+      if (hasChanges) {
+        // Apply selected chapters now if the user picked any
+        if (chapters) {
+          const selected = chapters.filter((c) => c.selected);
+          if (selected.length > 0) {
+            await applyChapters(epub, selected);
+          }
+        }
+        const blob = await packEpub(epub);
+        bytes = new Uint8Array(await blob.arrayBuffer());
+      }
+
       let bin = "";
       const chunk = 0x8000;
-      for (let i = 0; i < buf.length; i += chunk) {
-        bin += String.fromCharCode(...buf.subarray(i, i + chunk));
+      for (let i = 0; i < bytes.length; i += chunk) {
+        bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
       }
       const fileBase64 = btoa(bin);
 
@@ -197,18 +231,24 @@ function Optimizer() {
         data: {
           titolo: searchTitle || epub.meta.title,
           autore: searchAuthor || epub.meta.author,
-          fileName: epub.fileName,
+          fileName: originalFile.name,
           fileBase64,
           coverDataUrl: null,
+          isModified: hasChanges,
         },
       });
-      setSaved(true);
-      toast.success("ePub salvato e pronto per Kobo");
+      toast.success(hasChanges ? "ePub modificato salvato" : "ePub salvato così com'è");
+      navigate({ to: "/dashboard" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Salvataggio fallito");
     } finally {
       setBusy(null);
     }
+  };
+
+  const applyChaptersNow = () => {
+    setChaptersApplied(true);
+    toast.success("Indice pronto: verrà applicato al salvataggio");
   };
 
   return (
@@ -222,9 +262,9 @@ function Optimizer() {
             </Button>
           </Link>
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight">Kobo ePub Optimizer</h1>
+            <h1 className="text-lg font-semibold tracking-tight">Anteprima ePub</h1>
             <p className="text-xs text-muted-foreground">
-              Encoding · copertina · capitoli · pubblicazione
+              Salva così com'è oppure modifica copertina, encoding e indice.
             </p>
           </div>
         </div>
@@ -275,20 +315,25 @@ function Optimizer() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1 space-y-1">
-                  <div className="truncate text-sm font-semibold">{epub.meta.title}</div>
-                  <div className="truncate text-xs text-muted-foreground">{epub.meta.author}</div>
+                  <Input
+                    value={searchTitle}
+                    onChange={(e) => setSearchTitle(e.target.value)}
+                    className="h-8 text-sm font-semibold"
+                  />
+                  <Input
+                    value={searchAuthor}
+                    onChange={(e) => setSearchAuthor(e.target.value)}
+                    className="h-7 text-xs text-muted-foreground"
+                  />
                   <div className="flex flex-wrap gap-1 pt-1">
-                    <Badge variant={epub.meta.coverPath ? "default" : "destructive"}>
-                      {epub.meta.coverPath ? "Cover" : "No cover"}
-                    </Badge>
-                    <Badge variant={epub.encodingIssues.length ? "destructive" : "secondary"}>
-                      {epub.encodingIssues.length
-                        ? `${epub.encodingIssues.length} file mojibake`
-                        : "Encoding OK"}
-                    </Badge>
-                    {chapters && (
-                      <Badge variant="outline">
-                        {chapters.filter((c) => c.selected).length}/{chapters.length} capitoli
+                    {hasChanges ? (
+                      <Badge>Modificato</Badge>
+                    ) : (
+                      <Badge variant="secondary">Originale</Badge>
+                    )}
+                    {epub.encodingIssues.length > 0 && encodingFixed === null && (
+                      <Badge variant="destructive">
+                        {epub.encodingIssues.length} file mojibake
                       </Badge>
                     )}
                   </div>
@@ -296,27 +341,14 @@ function Optimizer() {
               </div>
             </Card>
 
-            <Card className="space-y-3 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-semibold">Encoding</div>
-                  <div className="text-xs text-muted-foreground">
-                    Converte tutto in UTF-8 e ripara mojibake (perchÃ© → perché).
-                  </div>
-                </div>
-                <Button size="sm" onClick={onFixEncoding} disabled={!!busy}>
-                  Ripara
-                </Button>
-              </div>
-              {encodingFixed !== null && (
-                <div className="text-xs text-green-600">
-                  ✓ {encodingFixed} file riscritti in UTF-8
-                </div>
-              )}
-            </Card>
-
-            <Card className="space-y-3 p-4">
-              <div className="text-sm font-semibold">Copertina</div>
+            {/* Collapsible: Cover */}
+            <CollapsibleCard
+              title="Copertina"
+              hint={coverChanged ? "Sostituita" : "Mantieni l'originale"}
+              open={openCover}
+              onToggle={() => setOpenCover((v) => !v)}
+              changed={coverChanged}
+            >
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
                 <div>
                   <Label htmlFor="t" className="text-xs">Titolo</Label>
@@ -333,7 +365,7 @@ function Optimizer() {
                 </div>
               </div>
               {covers && covers.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 mt-3">
                   {covers.map((c) => (
                     <button
                       key={c.id}
@@ -354,16 +386,49 @@ function Optimizer() {
                   ))}
                 </div>
               )}
-            </Card>
+            </CollapsibleCard>
 
-            <Card className="space-y-3 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-semibold">Indice dei capitoli</div>
-                  <div className="text-xs text-muted-foreground">
-                    Analisi euristica: titoli, grassetti isolati, parole chiave, salti di pagina.
-                  </div>
-                </div>
+            {/* Collapsible: Encoding */}
+            <CollapsibleCard
+              title="Encoding UTF-8"
+              hint={
+                encodingFixed !== null
+                  ? `${encodingFixed} file riparati`
+                  : epub.encodingIssues.length
+                    ? `${epub.encodingIssues.length} file da riparare`
+                    : "Encoding OK"
+              }
+              open={openEncoding}
+              onToggle={() => setOpenEncoding((v) => !v)}
+              changed={encodingFixed !== null}
+            >
+              <p className="text-xs text-muted-foreground mb-3">
+                Riscrive tutto in UTF-8 e ripara mojibake (es. "perchÃ©" → "perché").
+              </p>
+              <Button size="sm" onClick={onFixEncoding} disabled={!!busy}>
+                Ripara encoding
+              </Button>
+              {encodingFixed !== null && (
+                <p className="mt-2 text-xs text-green-600">✓ {encodingFixed} file riscritti</p>
+              )}
+            </CollapsibleCard>
+
+            {/* Collapsible: Chapters */}
+            <CollapsibleCard
+              title="Indice dei capitoli"
+              hint={
+                chapters
+                  ? `${chapters.filter((c) => c.selected).length}/${chapters.length} selezionati`
+                  : "Non analizzato"
+              }
+              open={openChapters}
+              onToggle={() => setOpenChapters((v) => !v)}
+              changed={chaptersApplied}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-muted-foreground">
+                  Le voci con 0 pagine (indice, sommario) sono pre-deselezionate.
+                </p>
                 <Button size="sm" onClick={onDetectChapters} disabled={!!busy}>
                   {chapters ? "Rianalizza" : "Analizza"}
                 </Button>
@@ -374,51 +439,68 @@ function Optimizer() {
               )}
 
               {chapters && chapters.length > 0 && (
-                <ul className="divide-y rounded-md border">
-                  {chapters.map((c) => (
-                    <li key={c.id} className="flex items-start gap-3 p-2.5">
-                      <input
-                        type="checkbox"
-                        checked={c.selected}
-                        onChange={() => toggleChapter(c.id)}
-                        className="mt-1.5 h-4 w-4 shrink-0 accent-primary"
-                        aria-label="Seleziona capitolo"
-                      />
-                      <div className="min-w-0 flex-1">
-                        {editingId === c.id ? (
-                          <Input
-                            autoFocus
-                            value={c.title}
-                            onChange={(e) => renameChapter(c.id, e.target.value)}
-                            onBlur={() => setEditingId(null)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === "Escape") setEditingId(null);
-                            }}
-                            className="h-8 text-sm"
-                          />
-                        ) : (
-                          <button
-                            onClick={() => setEditingId(c.id)}
-                            className="block w-full text-left"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="truncate text-sm font-medium">{c.title}</span>
-                              <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" />
-                            </div>
-                          </button>
-                        )}
-                        <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                          <span className="rounded bg-muted px-1.5 py-0.5 uppercase">
-                            {labelFor(c.source)}
-                          </span>
-                          <span className="truncate">{c.href.split("/").pop()}</span>
+                <>
+                  <ul className="divide-y rounded-md border max-h-96 overflow-y-auto">
+                    {chapters.map((c) => (
+                      <li key={c.id} className="flex items-start gap-3 p-2.5">
+                        <input
+                          type="checkbox"
+                          checked={c.selected}
+                          onChange={() => toggleChapter(c.id)}
+                          className="mt-1.5 h-4 w-4 shrink-0 accent-primary"
+                          aria-label="Seleziona capitolo"
+                        />
+                        <div className="min-w-0 flex-1">
+                          {editingId === c.id ? (
+                            <Input
+                              autoFocus
+                              value={c.title}
+                              onChange={(e) => renameChapter(c.id, e.target.value)}
+                              onBlur={() => setEditingId(null)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === "Escape") setEditingId(null);
+                              }}
+                              className="h-8 text-sm"
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setEditingId(c.id)}
+                              className="block w-full text-left"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="truncate text-sm font-medium">{c.title}</span>
+                                <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" />
+                              </div>
+                            </button>
+                          )}
+                          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                            <span
+                              className={`rounded px-1.5 py-0.5 ${
+                                c.pageCount === 0 ? "bg-muted" : "bg-primary/10 text-primary"
+                              }`}
+                            >
+                              {c.pageCount === 0 ? "0 pagine" : `~${c.pageCount} pag.`}
+                            </span>
+                            <span className="rounded bg-muted px-1.5 py-0.5 uppercase">
+                              {labelFor(c.source)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-3 w-full"
+                    onClick={applyChaptersNow}
+                    disabled={chaptersApplied}
+                  >
+                    {chaptersApplied ? "Indice confermato ✓" : "Conferma indice"}
+                  </Button>
+                </>
               )}
-            </Card>
+            </CollapsibleCard>
 
             <div className="sticky bottom-3 flex gap-2">
               <Button
@@ -426,11 +508,14 @@ function Optimizer() {
                 className="flex-1"
                 onClick={() => {
                   setEpubState(null);
+                  setOriginalBytes(null);
+                  setOriginalFile(null);
                   setCoverUrl(null);
                   setCovers(null);
                   setEncodingFixed(null);
                   setChapters(null);
-                  setSaved(false);
+                  setCoverChanged(false);
+                  setChaptersApplied(false);
                 }}
                 disabled={!!busy}
               >
@@ -438,16 +523,10 @@ function Optimizer() {
               </Button>
               <Button
                 className="flex-1"
-                onClick={onConfirmAndSave}
-                disabled={!!busy || !chapters || saved}
+                onClick={onSave}
+                disabled={!!busy}
               >
-                {saved ? (
-                  <>
-                    <Check className="h-4 w-4" /> Pronto per Kobo
-                  </>
-                ) : (
-                  "Conferma e Genera"
-                )}
+                {hasChanges ? "Salva modificato" : "Salva così com'è"}
               </Button>
             </div>
           </>
@@ -460,6 +539,45 @@ function Optimizer() {
         )}
       </main>
     </div>
+  );
+}
+
+interface CollapsibleProps {
+  title: string;
+  hint: string;
+  open: boolean;
+  onToggle: () => void;
+  changed: boolean;
+  children: React.ReactNode;
+}
+
+function CollapsibleCard({ title, hint, open, onToggle, changed, children }: CollapsibleProps) {
+  return (
+    <Card className="overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between p-4 text-left"
+      >
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">{title}</span>
+            {changed && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary uppercase">
+                modificato
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
+        </div>
+        {open ? (
+          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        )}
+      </button>
+      {open && <div className="px-4 pb-4">{children}</div>}
+    </Card>
   );
 }
 

@@ -28,14 +28,19 @@
   a.logout { display:inline-block; color:#000; font-size:16px;
              padding:8px 0; text-decoration:underline; }
   table.books { width:100%; border-collapse:collapse; margin-top:10px; }
-  table.books td { border-top:2px solid #000; padding:16px 0;
-                   vertical-align:middle; font-size:20px; }
-  td.dl { width:160px; text-align:right; }
-  a.dl { display:inline-block; padding:14px 18px;
+  table.books td { border-top:2px solid #000; padding:14px 0;
+                   vertical-align:middle; font-size:19px; }
+  td.dl { width:130px; text-align:right; }
+  td.del { width:90px; text-align:right; padding-left:8px; }
+  a.dl { display:inline-block; padding:12px 14px;
          background:#000; color:#fff; text-decoration:none;
-         font-weight:bold; font-size:20px; border:2px solid #000; }
+         font-weight:bold; font-size:18px; border:2px solid #000; }
+  a.del { display:inline-block; padding:12px 10px;
+          background:#fff; color:#000; text-decoration:none;
+          font-weight:bold; font-size:16px; border:2px solid #000; }
   .title { font-weight:bold; }
   .author { font-weight:normal; }
+  .date { display:block; font-size:14px; font-weight:normal; margin-top:4px; }
 </style>
 </head>
 <body>
@@ -144,13 +149,46 @@ function renderLibrary() {
       var b = books[i];
       var label = esc(b.titolo);
       if (b.autore) label += ' <span class="author">- ' + esc(b.autore) + '</span>';
+      var dateStr = formatDate(b.caricato_il);
+      var modBadge = b.is_modified ? ' (Modificato)' : '';
       rows += '<tr>'
-            + '<td><span class="title">' + label + '</span></td>'
+            + '<td><span class="title">' + label + '</span>'
+            +   '<span class="date">' + dateStr + modBadge + '</span></td>'
             + '<td class="dl"><a class="dl" href="#" onclick="return startDownload(\'' + esc(b.id) + '\');">DOWNLOAD</a></td>'
+            + '<td class="del"><a class="del" href="#" onclick="return removeBook(\'' + esc(b.id) + '\',\'' + esc(b.titolo).replace(/'/g, "\\'") + '\');">[Elimina]</a></td>'
             + '</tr>';
     }
     setRoot(header + '<table class="books">' + rows + '</table><div id="error"></div>');
   });
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  var dd = d.getDate(); if (dd < 10) dd = '0' + dd;
+  var mm = d.getMonth() + 1; if (mm < 10) mm = '0' + mm;
+  return dd + '/' + mm + '/' + d.getFullYear();
+}
+
+function removeBook(id, title) {
+  if (!window.confirm('Eliminare "' + title + '"?')) return false;
+  xhrPost('/api/public/kobo/delete', { token: sessionToken, ebookId: id }, function (status, data) {
+    if (status === 401) {
+      sessionToken = null;
+      try { window.localStorage.removeItem('kobo_t'); } catch (e) {}
+      renderPin('Sessione scaduta. Inserisci di nuovo il PIN.');
+      return;
+    }
+    if (status === 200 && data && data.ok) {
+      renderLibrary();
+      return;
+    }
+    var msg = (data && data.error) ? data.error : 'Errore durante l\'eliminazione';
+    var errBox = el('error');
+    if (errBox) errBox.innerHTML = '<div class="err">' + esc(msg) + '</div>';
+  });
+  return false;
 }
 
 function startDownload(id) {

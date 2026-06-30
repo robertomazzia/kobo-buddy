@@ -15,6 +15,8 @@ export interface DetectedChapter {
   confidence: number;
   /** initially picked? */
   selected: boolean;
+  /** estimated page count for this chapter (~280 words/page) */
+  pageCount: number;
 }
 
 const CHAPTER_KEYWORDS = [
@@ -239,6 +241,10 @@ function scanHtml(html: string): RawBreak[] {
   return breaks;
 }
 
+/** Regex matching titles that are *just* a chapter keyword (e.g. "Capitolo 1"). */
+const JUST_KEYWORD_RE =
+  /^\s*(?:capitolo|chapter|parte|part|libro|book)\s*(?:[0-9]+|[ivxlcdm]+)?\s*[:.\-–—]?\s*$/i;
+
 /** Detect chapters across the whole ePub. */
 export async function detectChapters(
   epub: LoadedEpub,
@@ -251,13 +257,20 @@ export async function detectChapters(
   const spine = readSpine(epub, opfDoc);
   const tocTitles = await readExistingTocTitles(epub, opfDoc);
 
-  const out: DetectedChapter[] = [];
+  const raw: DetectedChapter[] = [];
+  const fileWords = new Map<string, number>();
   let idx = 0;
 
   for (const href of spine) {
     const file = epub.zip.file(href);
-    if (!file) continue;
+    if (!file) {
+      fileWords.set(href, 0);
+      continue;
+    }
     const html = await file.async("string");
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    fileWords.set(href, wordCount(doc.body?.textContent ?? ""));
+
     let breaks = scanHtml(html);
 
     // Boost confidence for entries matching the existing TOC
@@ -269,34 +282,68 @@ export async function detectChapters(
     });
 
     if (breaks.length === 0) {
-      // Fallback: one entry per file using filename
       const base = href.split("/").pop()?.replace(/\.x?html?$/i, "") ?? `Sezione ${idx + 1}`;
-      out.push({
+      raw.push({
         id: `c${++idx}`,
         href,
         title: prettifyFilename(base),
         source: "fallback",
         confidence: 0.2,
         selected: false,
+        pageCount: 0,
       });
       continue;
     }
 
     for (const b of breaks) {
-      out.push({
+      raw.push({
         id: `c${++idx}`,
         href,
         anchor: b.anchor,
         title: b.title,
         source: b.source,
         confidence: b.confidence,
-        // Auto-select higher-confidence entries
         selected: b.confidence >= 0.55,
+        pageCount: 0,
       });
     }
   }
 
-  return out;
+  // Merge "Capitolo X" + adjacent title pairs in the same file
+  const merged: DetectedChapter[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const cur = raw[i];
+    const next = raw[i + 1];
+    if (
+      next &&
+      cur.href === next.href &&
+      JUST_KEYWORD_RE.test(cur.title) &&
+      !JUST_KEYWORD_RE.test(next.title)
+    ) {
+      merged.push({
+        ...cur,
+        title: `${cur.title.trim()} — ${next.title.trim()}`.replace(/\s+/g, " "),
+        anchor: cur.anchor ?? next.anchor,
+        confidence: Math.max(cur.confidence, next.confidence),
+      });
+      i++; // skip the consumed sibling
+    } else {
+      merged.push(cur);
+    }
+  }
+
+  // Estimate page count per chapter: split each file's words across its chapters
+  const countByFile = new Map<string, number>();
+  for (const c of merged) countByFile.set(c.href, (countByFile.get(c.href) ?? 0) + 1);
+  for (const c of merged) {
+    const words = fileWords.get(c.href) ?? 0;
+    const n = countByFile.get(c.href) ?? 1;
+    c.pageCount = Math.max(0, Math.round(words / n / 280));
+    // Auto-deselect zero-page entries (TOC, sommario, frontespizio)
+    if (c.pageCount === 0) c.selected = false;
+  }
+
+  return merged;
 }
 
 function prettifyFilename(name: string): string {
