@@ -107,12 +107,6 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              "if (navigator.userAgent.indexOf('Kobo') !== -1) { window.location.replace('/kobo.html'); }",
-          }}
-        />
         <HeadContent />
       </head>
       <body>
