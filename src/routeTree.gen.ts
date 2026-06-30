@@ -18,6 +18,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as ApiPublicKoboRedeemRouteImport } from './routes/api/public/kobo.redeem'
 import { Route as ApiPublicKoboLibraryRouteImport } from './routes/api/public/kobo.library'
 import { Route as ApiPublicKoboDownloadRouteImport } from './routes/api/public/kobo.download'
+import { Route as ApiPublicKoboDeleteRouteImport } from './routes/api/public/kobo.delete'
 
 const KoboRoute = KoboRouteImport.update({
   id: '/kobo',
@@ -63,6 +64,11 @@ const ApiPublicKoboDownloadRoute = ApiPublicKoboDownloadRouteImport.update({
   path: '/api/public/kobo/download',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicKoboDeleteRoute = ApiPublicKoboDeleteRouteImport.update({
+  id: '/api/public/kobo/delete',
+  path: '/api/public/kobo/delete',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/kobo': typeof KoboRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/optimizer': typeof AuthenticatedOptimizerRoute
+  '/api/public/kobo/delete': typeof ApiPublicKoboDeleteRoute
   '/api/public/kobo/download': typeof ApiPublicKoboDownloadRoute
   '/api/public/kobo/library': typeof ApiPublicKoboLibraryRoute
   '/api/public/kobo/redeem': typeof ApiPublicKoboRedeemRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/kobo': typeof KoboRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/optimizer': typeof AuthenticatedOptimizerRoute
+  '/api/public/kobo/delete': typeof ApiPublicKoboDeleteRoute
   '/api/public/kobo/download': typeof ApiPublicKoboDownloadRoute
   '/api/public/kobo/library': typeof ApiPublicKoboLibraryRoute
   '/api/public/kobo/redeem': typeof ApiPublicKoboRedeemRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/kobo': typeof KoboRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/optimizer': typeof AuthenticatedOptimizerRoute
+  '/api/public/kobo/delete': typeof ApiPublicKoboDeleteRoute
   '/api/public/kobo/download': typeof ApiPublicKoboDownloadRoute
   '/api/public/kobo/library': typeof ApiPublicKoboLibraryRoute
   '/api/public/kobo/redeem': typeof ApiPublicKoboRedeemRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
     | '/kobo'
     | '/dashboard'
     | '/optimizer'
+    | '/api/public/kobo/delete'
     | '/api/public/kobo/download'
     | '/api/public/kobo/library'
     | '/api/public/kobo/redeem'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
     | '/kobo'
     | '/dashboard'
     | '/optimizer'
+    | '/api/public/kobo/delete'
     | '/api/public/kobo/download'
     | '/api/public/kobo/library'
     | '/api/public/kobo/redeem'
@@ -125,6 +136,7 @@ export interface FileRouteTypes {
     | '/kobo'
     | '/_authenticated/dashboard'
     | '/_authenticated/optimizer'
+    | '/api/public/kobo/delete'
     | '/api/public/kobo/download'
     | '/api/public/kobo/library'
     | '/api/public/kobo/redeem'
@@ -135,6 +147,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   KoboRoute: typeof KoboRoute
+  ApiPublicKoboDeleteRoute: typeof ApiPublicKoboDeleteRoute
   ApiPublicKoboDownloadRoute: typeof ApiPublicKoboDownloadRoute
   ApiPublicKoboLibraryRoute: typeof ApiPublicKoboLibraryRoute
   ApiPublicKoboRedeemRoute: typeof ApiPublicKoboRedeemRoute
@@ -205,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicKoboDownloadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/kobo/delete': {
+      id: '/api/public/kobo/delete'
+      path: '/api/public/kobo/delete'
+      fullPath: '/api/public/kobo/delete'
+      preLoaderRoute: typeof ApiPublicKoboDeleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -226,6 +246,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   KoboRoute: KoboRoute,
+  ApiPublicKoboDeleteRoute: ApiPublicKoboDeleteRoute,
   ApiPublicKoboDownloadRoute: ApiPublicKoboDownloadRoute,
   ApiPublicKoboLibraryRoute: ApiPublicKoboLibraryRoute,
   ApiPublicKoboRedeemRoute: ApiPublicKoboRedeemRoute,
