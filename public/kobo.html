@@ -48,6 +48,7 @@
 
 <script>
 /* Vanilla ES5 — must run on the old WebKit shipped with Kobo Aura HD / Clara BW. */
+var API_BASE = 'https://kobo-buddy.lovable.app';
 var sessionToken = null;
 try { sessionToken = window.localStorage.getItem('kobo_t'); } catch (e) { sessionToken = null; }
 
