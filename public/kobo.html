@@ -124,7 +124,7 @@ function logout() {
 
 function renderLibrary() {
   setRoot('<h1>La tua libreria</h1><p>Caricamento...</p>');
-  xhrPost('/api/public/kobo/library', { token: sessionToken }, function (status, data) {
+  xhrPost(API_BASE + '/api/public/kobo/library', { token: sessionToken }, function (status, data) {
     if (status === 401) {
       sessionToken = null;
       try { window.localStorage.removeItem('kobo_t'); } catch (e) {}
