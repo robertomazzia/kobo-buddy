@@ -48,6 +48,7 @@
 
 <script>
 /* Vanilla ES5 — must run on the old WebKit shipped with Kobo Aura HD / Clara BW. */
+var API_BASE = 'https://kobo-buddy.lovable.app';
 var sessionToken = null;
 try { sessionToken = window.localStorage.getItem('kobo_t'); } catch (e) { sessionToken = null; }
 
@@ -99,7 +100,7 @@ function handlePin() {
   btn.disabled = true;
   btn.innerHTML = 'Verifica...';
   el('error').innerHTML = '';
-  xhrPost('/api/public/kobo/redeem', { pin: val }, function (status, data) {
+  xhrPost(API_BASE + '/api/public/kobo/redeem', { pin: val }, function (status, data) {
     if (status === 200 && data && data.token) {
       sessionToken = data.token;
       try { window.localStorage.setItem('kobo_t', sessionToken); } catch (e) {}
@@ -123,7 +124,7 @@ function logout() {
 
 function renderLibrary() {
   setRoot('<h1>La tua libreria</h1><p>Caricamento...</p>');
-  xhrPost('/api/public/kobo/library', { token: sessionToken }, function (status, data) {
+  xhrPost(API_BASE + '/api/public/kobo/library', { token: sessionToken }, function (status, data) {
     if (status === 401) {
       sessionToken = null;
       try { window.localStorage.removeItem('kobo_t'); } catch (e) {}
@@ -173,7 +174,7 @@ function formatDate(iso) {
 
 function removeBook(id, title) {
   if (!window.confirm('Eliminare "' + title + '"?')) return false;
-  xhrPost('/api/public/kobo/delete', { token: sessionToken, ebookId: id }, function (status, data) {
+  xhrPost(API_BASE + '/api/public/kobo/delete', { token: sessionToken, ebookId: id }, function (status, data) {
     if (status === 401) {
       sessionToken = null;
       try { window.localStorage.removeItem('kobo_t'); } catch (e) {}
@@ -194,7 +195,7 @@ function removeBook(id, title) {
 function startDownload(id) {
   var errBox = el('error');
   if (errBox) errBox.innerHTML = '';
-  xhrPost('/api/public/kobo/download', { token: sessionToken, ebookId: id }, function (status, data) {
+  xhrPost(API_BASE + '/api/public/kobo/download', { token: sessionToken, ebookId: id }, function (status, data) {
     if (status === 401) {
       sessionToken = null;
       try { window.localStorage.removeItem('kobo_t'); } catch (e) {}
