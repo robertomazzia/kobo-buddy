@@ -195,7 +195,7 @@ function removeBook(id, title) {
 function startDownload(id) {
   var errBox = el('error');
   if (errBox) errBox.innerHTML = '';
-  xhrPost('/api/public/kobo/download', { token: sessionToken, ebookId: id }, function (status, data) {
+  xhrPost(API_BASE + '/api/public/kobo/download', { token: sessionToken, ebookId: id }, function (status, data) {
     if (status === 401) {
       sessionToken = null;
       try { window.localStorage.removeItem('kobo_t'); } catch (e) {}
