@@ -100,7 +100,7 @@ function handlePin() {
   btn.disabled = true;
   btn.innerHTML = 'Verifica...';
   el('error').innerHTML = '';
-  xhrPost('/api/public/kobo/redeem', { pin: val }, function (status, data) {
+  xhrPost(API_BASE + '/api/public/kobo/redeem', { pin: val }, function (status, data) {
     if (status === 200 && data && data.token) {
       sessionToken = data.token;
       try { window.localStorage.setItem('kobo_t', sessionToken); } catch (e) {}
