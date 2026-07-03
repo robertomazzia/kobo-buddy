@@ -1,7 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="refresh" content="0;url=/public/kobo.html">
+<script>
+  if (navigator.userAgent.indexOf('Kobo') !== -1) {
+    window.location.replace('/public/kobo.html');
+  }
+</script>
 </head>
-<body></body>
+<body> </body>
 </html>
