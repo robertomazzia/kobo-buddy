@@ -66,6 +66,8 @@ function xhrPost(url, payload, cb) {
   var xhr = new XMLHttpRequest();
   xhr.open('POST', url, true);
   xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.setRequestHeader('apikey', SUPABASE_ANON);
+  xhr.setRequestHeader('Authorization', 'Bearer ' + SUPABASE_ANON);
   xhr.onreadystatechange = function () {
     if (xhr.readyState !== 4) return;
     var data = null;
