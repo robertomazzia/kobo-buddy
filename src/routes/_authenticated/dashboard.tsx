@@ -287,7 +287,7 @@ function Dashboard() {
             <div>
               <h2 className="font-semibold">I tuoi dispositivi Kobo</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Associa il browser del Kobo con un PIN di 4 caratteri.
+                Vai su kobo.zemazzialab.it dal browser del tuo Kobo e associa la libreria utilizzando il PIN di 4 caratteri.
               </p>
             </div>
             <Smartphone className="h-5 w-5 text-muted-foreground" />
