@@ -107,6 +107,12 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "if(navigator.userAgent.indexOf('Kobo')!==-1){window.location.replace('/kobo.html');}",
+          }}
+        />
         <HeadContent />
       </head>
       <body>
@@ -116,6 +122,7 @@ function RootShell({ children }: { children: ReactNode }) {
     </html>
   );
 }
+
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
