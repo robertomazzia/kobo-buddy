@@ -48,7 +48,8 @@
 
 <script>
 /* Vanilla ES5 — must run on the old WebKit shipped with Kobo Aura HD / Clara BW. */
-var API_BASE = 'https://kobo-buddy.lovable.app';
+var API_BASE = 'https://qgkgecfagagfiesawodw.supabase.co/functions/v1';
+var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFna2dlY2ZhZ2FnZmllc2F3b2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MDMxNjksImV4cCI6MjA5ODE3OTE2OX0.-qV8qio1yWlU99SIVFF3AuC6DvcqLX2at_AVhY97iuk';
 var sessionToken = null;
 try { sessionToken = window.localStorage.getItem('kobo_t'); } catch (e) { sessionToken = null; }
 
