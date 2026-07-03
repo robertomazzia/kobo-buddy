@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Authenticated can read whitelist" ON public.allowed_users;
