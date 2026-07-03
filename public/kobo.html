@@ -48,7 +48,8 @@
 
 <script>
 /* Vanilla ES5 — must run on the old WebKit shipped with Kobo Aura HD / Clara BW. */
-var API_BASE = 'https://kobo-buddy.lovable.app';
+var API_BASE = 'https://qgkgecfagagfiesawodw.supabase.co/functions/v1';
+var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFna2dlY2ZhZ2FnZmllc2F3b2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MDMxNjksImV4cCI6MjA5ODE3OTE2OX0.-qV8qio1yWlU99SIVFF3AuC6DvcqLX2at_AVhY97iuk';
 var sessionToken = null;
 try { sessionToken = window.localStorage.getItem('kobo_t'); } catch (e) { sessionToken = null; }
 
@@ -65,6 +66,8 @@ function xhrPost(url, payload, cb) {
   var xhr = new XMLHttpRequest();
   xhr.open('POST', url, true);
   xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.setRequestHeader('apikey', SUPABASE_ANON);
+  xhr.setRequestHeader('Authorization', 'Bearer ' + SUPABASE_ANON);
   xhr.onreadystatechange = function () {
     if (xhr.readyState !== 4) return;
     var data = null;
@@ -100,7 +103,7 @@ function handlePin() {
   btn.disabled = true;
   btn.innerHTML = 'Verifica...';
   el('error').innerHTML = '';
-  xhrPost(API_BASE + '/api/public/kobo/redeem', { pin: val }, function (status, data) {
+  xhrPost(API_BASE + '/kobo-redeem', { pin: val }, function (status, data) {
     if (status === 200 && data && data.token) {
       sessionToken = data.token;
       try { window.localStorage.setItem('kobo_t', sessionToken); } catch (e) {}
@@ -124,7 +127,7 @@ function logout() {
 
 function renderLibrary() {
   setRoot('<h1>La tua libreria</h1><p>Caricamento...</p>');
-  xhrPost(API_BASE + '/api/public/kobo/library', { token: sessionToken }, function (status, data) {
+  xhrPost(API_BASE + '/kobo-library', { token: sessionToken }, function (status, data) {
     if (status === 401) {
       sessionToken = null;
       try { window.localStorage.removeItem('kobo_t'); } catch (e) {}
@@ -174,7 +177,7 @@ function formatDate(iso) {
 
 function removeBook(id, title) {
   if (!window.confirm('Eliminare "' + title + '"?')) return false;
-  xhrPost(API_BASE + '/api/public/kobo/delete', { token: sessionToken, ebookId: id }, function (status, data) {
+  xhrPost(API_BASE + '/kobo-delete', { token: sessionToken, ebookId: id }, function (status, data) {
     if (status === 401) {
       sessionToken = null;
       try { window.localStorage.removeItem('kobo_t'); } catch (e) {}
@@ -195,7 +198,7 @@ function removeBook(id, title) {
 function startDownload(id) {
   var errBox = el('error');
   if (errBox) errBox.innerHTML = '';
-  xhrPost(API_BASE + '/api/public/kobo/download', { token: sessionToken, ebookId: id }, function (status, data) {
+  xhrPost(API_BASE + '/kobo-download', { token: sessionToken, ebookId: id }, function (status, data) {
     if (status === 401) {
       sessionToken = null;
       try { window.localStorage.removeItem('kobo_t'); } catch (e) {}
