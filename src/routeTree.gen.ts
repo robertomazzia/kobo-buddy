@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedOptimizerRouteImport } from './routes/_authenticated/optimizer'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedAdminWhitelistRouteImport } from './routes/_authenticated/admin.whitelist'
 import { Route as ApiPublicKoboRedeemRouteImport } from './routes/api/public/kobo.redeem'
 import { Route as ApiPublicKoboLibraryRouteImport } from './routes/api/public/kobo.library'
 import { Route as ApiPublicKoboDownloadRouteImport } from './routes/api/public/kobo.download'
@@ -49,6 +50,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminWhitelistRoute =
+  AuthenticatedAdminWhitelistRouteImport.update({
+    id: '/admin/whitelist',
+    path: '/admin/whitelist',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicKoboRedeemRoute = ApiPublicKoboRedeemRouteImport.update({
   id: '/api/public/kobo/redeem',
   path: '/api/public/kobo/redeem',
@@ -76,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/kobo': typeof KoboRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/optimizer': typeof AuthenticatedOptimizerRoute
+  '/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
   '/api/public/kobo/delete': typeof ApiPublicKoboDeleteRoute
   '/api/public/kobo/download': typeof ApiPublicKoboDownloadRoute
   '/api/public/kobo/library': typeof ApiPublicKoboLibraryRoute
@@ -87,6 +95,7 @@ export interface FileRoutesByTo {
   '/kobo': typeof KoboRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/optimizer': typeof AuthenticatedOptimizerRoute
+  '/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
   '/api/public/kobo/delete': typeof ApiPublicKoboDeleteRoute
   '/api/public/kobo/download': typeof ApiPublicKoboDownloadRoute
   '/api/public/kobo/library': typeof ApiPublicKoboLibraryRoute
@@ -100,6 +109,7 @@ export interface FileRoutesById {
   '/kobo': typeof KoboRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/optimizer': typeof AuthenticatedOptimizerRoute
+  '/_authenticated/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
   '/api/public/kobo/delete': typeof ApiPublicKoboDeleteRoute
   '/api/public/kobo/download': typeof ApiPublicKoboDownloadRoute
   '/api/public/kobo/library': typeof ApiPublicKoboLibraryRoute
@@ -113,6 +123,7 @@ export interface FileRouteTypes {
     | '/kobo'
     | '/dashboard'
     | '/optimizer'
+    | '/admin/whitelist'
     | '/api/public/kobo/delete'
     | '/api/public/kobo/download'
     | '/api/public/kobo/library'
@@ -124,6 +135,7 @@ export interface FileRouteTypes {
     | '/kobo'
     | '/dashboard'
     | '/optimizer'
+    | '/admin/whitelist'
     | '/api/public/kobo/delete'
     | '/api/public/kobo/download'
     | '/api/public/kobo/library'
@@ -136,6 +148,7 @@ export interface FileRouteTypes {
     | '/kobo'
     | '/_authenticated/dashboard'
     | '/_authenticated/optimizer'
+    | '/_authenticated/admin/whitelist'
     | '/api/public/kobo/delete'
     | '/api/public/kobo/download'
     | '/api/public/kobo/library'
@@ -197,6 +210,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/whitelist': {
+      id: '/_authenticated/admin/whitelist'
+      path: '/admin/whitelist'
+      fullPath: '/admin/whitelist'
+      preLoaderRoute: typeof AuthenticatedAdminWhitelistRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/kobo/redeem': {
       id: '/api/public/kobo/redeem'
       path: '/api/public/kobo/redeem'
@@ -231,11 +251,13 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedOptimizerRoute: typeof AuthenticatedOptimizerRoute
+  AuthenticatedAdminWhitelistRoute: typeof AuthenticatedAdminWhitelistRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedOptimizerRoute: AuthenticatedOptimizerRoute,
+  AuthenticatedAdminWhitelistRoute: AuthenticatedAdminWhitelistRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

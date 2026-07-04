@@ -15,6 +15,7 @@ import {
   Check,
   Clock,
   ArrowUpDown,
+  ShieldCheck,
 } from "lucide-react";
 import {
   createKoboPin,
