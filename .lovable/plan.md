@@ -1,34 +1,36 @@
-## Diagnosi
+## Contesto
 
-I log server mostrano la causa esatta dell'errore con PIN corretto:
+- Esiste una whitelist (`allowed_users`) verificata dopo il login tramite `is_email_allowed`. Se l'email non è presente, l'utente vede "Accesso non autorizzato" — è quello che sta succedendo a `ilaria.solaini@gmail.com`.
+- Ogni utente ha già la propria libreria isolata (RLS su `ebooks`, `profiles`, `kobo_devices` scopato a `auth.uid()`). Nessun cambiamento necessario lato multi-utente.
 
-```text
-function gen_random_bytes(integer) does not exist
-```
+## Piano
 
-Quindi il PIN è valido, ma la funzione database `redeem_kobo_pin` fallisce quando prova a generare il `session_token`. Per questo la pagina Kobo riceve il messaggio generico "Errore durante la verifica".
+### 1. Sblocca Ilaria
+Inserisco `ilaria.solaini@gmail.com` nella tabella `allowed_users`. Al prossimo caricamento della pagina entrerà nell'app senza modifiche di codice.
 
-## Piano di correzione
+### 2. Ruolo admin
+- Creo enum `app_role` (`admin`, `user`) e tabella `user_roles(user_id, role)` con RLS e la funzione `has_role(_user_id, _role)` SECURITY DEFINER (pattern anti-recursione).
+- Assegno il ruolo `admin` al tuo account (mi serve la tua email per il seed — vedi domanda sotto).
+- Aggiungo GRANT corretti (`authenticated` SELECT su `user_roles`, `service_role` ALL).
 
-1. **Correggere la funzione database `redeem_kobo_pin`**
-   - Sostituire la generazione token basata su `gen_random_bytes(32)` con una generazione compatibile con il database attuale.
-   - Mantenere invariato il comportamento: PIN 4 caratteri, scadenza, uso una sola volta, aggiornamento di `session_token`, azzeramento `pin_scadenza`.
+### 3. Policy sulla whitelist
+- `allowed_users` oggi non ha nessuna policy SELECT/INSERT/DELETE (accesso solo via RPC SECURITY DEFINER).
+- Aggiungo policy scoped agli admin:
+  - SELECT/INSERT/DELETE su `allowed_users` **solo se** `has_role(auth.uid(), 'admin')`.
+- Aggiungo GRANT `SELECT, INSERT, DELETE ON allowed_users TO authenticated` (le policy limitano comunque ai soli admin).
 
-2. **Rendere l'endpoint `/api/public/kobo/redeem` più robusto**
-   - Lasciare messaggi utente semplici per Kobo.
-   - Migliorare il log tecnico lato server per eventuali errori futuri senza mostrare dettagli sensibili al Kobo.
-   - Verificare che un PIN vecchio continui a restituire "PIN non valido o scaduto".
+### 4. Pagina admin `/admin/whitelist`
+- Nuovo file `src/routes/_authenticated/admin.whitelist.tsx` (protetto dal layout esistente).
+- `beforeLoad` extra: chiama `has_role` via RPC; se non admin → redirect a `/dashboard` (o mostra "Non autorizzato").
+- UI minima coerente col design attuale (shadcn `Card`, `Input`, `Button`, `Table`):
+  - Lista email autorizzate con pulsante "Rimuovi".
+  - Form "Aggiungi email" + campo opzionale nota.
+  - Toast di conferma/errore.
+- Link discreto alla pagina admin nel menu utente / dashboard, visibile solo se `has_role('admin')`.
 
-3. **Verificare il flusso reale end-to-end**
-   - Testare l'endpoint con PIN non valido.
-   - Generare/identificare un PIN valido nel database di test e verificare che l'endpoint ritorni un `token`.
-   - Verificare che `/api/public/kobo/library` accetti il token e non fallisca subito.
+### 5. Nessuna modifica a
+- Logica Kobo, edge functions, RLS di `ebooks`/`profiles`/`kobo_devices`.
+- Flusso auth Google e layout `_authenticated`.
 
-4. **Non modificare la UI Kobo salvo necessità**
-   - La pagina statica ES5 `public/kobo.html` è coerente con il requisito Kobo; il problema attuale è lato backend/database, non React o JavaScript moderno.
-
-## Risultato atteso
-
-- PIN scaduto/errato: messaggio chiaro "PIN non valido o scaduto".
-- PIN valido: pairing completato, token salvato, passaggio automatico alla lista libri.
-- Nessun nuovo errore generico durante la verifica.
+## Domanda prima di procedere
+Qual è la tua email admin da seedare in `user_roles`? (immagino l'owner attuale del progetto — confermami l'indirizzo esatto così faccio partire la migration corretta).
