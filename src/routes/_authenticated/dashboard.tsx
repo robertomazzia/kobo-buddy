@@ -169,9 +169,21 @@ function Dashboard() {
               </p>
             </div>
           </div>
-          <Button size="icon" variant="ghost" onClick={signOut} aria-label="Esci">
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {isAdmin && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => navigate({ to: "/admin/whitelist" })}
+                aria-label="Whitelist"
+              >
+                <ShieldCheck className="h-4 w-4" />
+              </Button>
+            )}
+            <Button size="icon" variant="ghost" onClick={signOut} aria-label="Esci">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </header>
 
