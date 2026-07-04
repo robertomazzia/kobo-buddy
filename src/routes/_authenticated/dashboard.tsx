@@ -47,6 +47,7 @@ type SortKey = "recent" | "oldest" | "title-asc" | "title-desc";
 function Dashboard() {
   const navigate = useNavigate();
   const [email, setEmail] = useState<string>("");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const createPin = useServerFn(createKoboPin);
   const listDevicesFn = useServerFn(listKoboDevices);
