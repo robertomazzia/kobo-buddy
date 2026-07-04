@@ -75,7 +75,16 @@ function Dashboard() {
   }, [listDevicesFn, listFn]);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+    supabase.auth.getUser().then(async ({ data }) => {
+      setEmail(data.user?.email ?? "");
+      if (data.user) {
+        const { data: r } = await supabase.rpc("has_role", {
+          _user_id: data.user.id,
+          _role: "admin",
+        });
+        setIsAdmin(r === true);
+      }
+    });
     refresh();
   }, [refresh]);
 
