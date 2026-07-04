@@ -15,6 +15,7 @@ import {
   Check,
   Clock,
   ArrowUpDown,
+  ShieldCheck,
 } from "lucide-react";
 import {
   createKoboPin,
@@ -46,6 +47,7 @@ type SortKey = "recent" | "oldest" | "title-asc" | "title-desc";
 function Dashboard() {
   const navigate = useNavigate();
   const [email, setEmail] = useState<string>("");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const createPin = useServerFn(createKoboPin);
   const listDevicesFn = useServerFn(listKoboDevices);
@@ -73,7 +75,16 @@ function Dashboard() {
   }, [listDevicesFn, listFn]);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+    supabase.auth.getUser().then(async ({ data }) => {
+      setEmail(data.user?.email ?? "");
+      if (data.user) {
+        const { data: r } = await supabase.rpc("has_role", {
+          _user_id: data.user.id,
+          _role: "admin",
+        });
+        setIsAdmin(r === true);
+      }
+    });
     refresh();
   }, [refresh]);
 
@@ -158,9 +169,21 @@ function Dashboard() {
               </p>
             </div>
           </div>
-          <Button size="icon" variant="ghost" onClick={signOut} aria-label="Esci">
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {isAdmin && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => navigate({ to: "/admin/whitelist" })}
+                aria-label="Whitelist"
+              >
+                <ShieldCheck className="h-4 w-4" />
+              </Button>
+            )}
+            <Button size="icon" variant="ghost" onClick={signOut} aria-label="Esci">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </header>
 
