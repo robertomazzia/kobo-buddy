@@ -25,6 +25,8 @@ import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronDown, ChevronRight, Pencil } from "lucide-react";
+import { BottomNav } from "@/components/bottom-nav";
+
 
 export const Route = createFileRoute("/_authenticated/optimizer")({
   head: () => ({
@@ -538,9 +540,11 @@ function Optimizer() {
           </div>
         )}
       </main>
+      <BottomNav />
     </div>
   );
 }
+
 
 interface CollapsibleProps {
   title: string;
