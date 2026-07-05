@@ -227,59 +227,6 @@ function Dashboard() {
           />
         </Card>
 
-        {/* Library list */}
-        <Card className="p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">I tuoi ePub</h2>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <ArrowUpDown className="h-3.5 w-3.5" />
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as SortKey)}
-                className="bg-transparent text-xs focus:outline-none"
-                aria-label="Ordina"
-              >
-                <option value="recent">Più recenti</option>
-                <option value="oldest">Più vecchi</option>
-                <option value="title-asc">Titolo A→Z</option>
-                <option value="title-desc">Titolo Z→A</option>
-              </select>
-            </div>
-          </div>
-
-          {sortedEbooks.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-4 text-center">
-              Nessun libro ancora. Carica il tuo primo ePub qui sopra.
-            </p>
-          ) : (
-            <ul className="divide-y -mx-1">
-              {sortedEbooks.map((b) => (
-                <li key={b.id} className="flex items-center gap-3 px-1 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{b.titolo}</p>
-                    {b.autore && (
-                      <p className="truncate text-[11px] text-muted-foreground">{b.autore}</p>
-                    )}
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {formatDate(b.caricato_il)} ·{" "}
-                      <span className={b.is_modified ? "text-primary" : ""}>
-                        {b.is_modified ? "Modificato" : "Originale"}
-                      </span>
-                    </p>
-                  </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleDeleteEbook(b.id, b.titolo)}
-                    aria-label="Elimina"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
 
         {/* Kobo devices */}
         <Card className="p-5 space-y-4">
