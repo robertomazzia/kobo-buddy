@@ -103,6 +103,98 @@ export const deleteEbook = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Get a signed download URL for one of the current user's own ebooks. */
+export const getOwnEbookDownloadUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => ({ id: String(d.id) }))
+  .handler(async ({ data, context }): Promise<{ url: string; fileName: string }> => {
+    const { supabase, userId } = context;
+    const { data: row, error } = await supabase
+      .from("ebooks")
+      .select("id, user_id, file_path, titolo")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!row || row.user_id !== userId) throw new Error("Libro non trovato");
+    if (!row.file_path) throw new Error("File non disponibile");
+    const safe = (row.titolo || "book").replace(/[^a-zA-Z0-9._-]+/g, "_");
+    const { data: signed, error: e2 } = await supabase.storage
+      .from("ebooks")
+      .createSignedUrl(row.file_path, 300, { download: `${safe}.epub` });
+    if (e2 || !signed?.signedUrl) throw new Error("Impossibile generare il link");
+    return { url: signed.signedUrl, fileName: `${safe}.epub` };
+  });
+
+/** Share (copy) one of the user's ebooks to another registered user by email. */
+export const shareEbook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; email: string }) => ({
+    id: String(d.id ?? ""),
+    email: String(d.email ?? "").trim().toLowerCase(),
+  }))
+  .handler(async ({ data, context }): Promise<{ ok: true; recipient: string }> => {
+    const { supabase, userId } = context;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      throw new Error("Email non valida");
+    }
+
+    // Load source ebook via user's RLS-scoped client (guarantees ownership).
+    const { data: src, error: e1 } = await supabase
+      .from("ebooks")
+      .select("id, user_id, file_path, titolo, autore, cover_url, is_modified, status")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (e1) throw e1;
+    if (!src || src.user_id !== userId) throw new Error("Libro non trovato");
+    if (!src.file_path) throw new Error("File non disponibile");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Look up recipient in profiles.
+    const { data: recipient, error: e2 } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email")
+      .ilike("email", data.email)
+      .maybeSingle();
+    if (e2) throw e2;
+    if (!recipient) throw new Error("Nessun utente registrato con questa email");
+    if (recipient.id === userId) throw new Error("Non puoi condividere con te stesso");
+
+    // Copy storage object into recipient's folder.
+    const originalName = src.file_path.split("/").pop() ?? "book.epub";
+    const destPath = `${recipient.id}/${crypto.randomUUID()}-${originalName}`;
+
+    const { data: dl, error: e3 } = await supabaseAdmin.storage
+      .from("ebooks")
+      .download(src.file_path);
+    if (e3 || !dl) throw new Error("Impossibile leggere il file sorgente");
+
+    const bytes = new Uint8Array(await dl.arrayBuffer());
+    const { error: e4 } = await supabaseAdmin.storage
+      .from("ebooks")
+      .upload(destPath, new Blob([bytes as BlobPart], { type: "application/epub+zip" }), {
+        contentType: "application/epub+zip",
+        upsert: false,
+      });
+    if (e4) throw new Error(`Copia fallita: ${e4.message}`);
+
+    const { error: e5 } = await supabaseAdmin.from("ebooks").insert({
+      user_id: recipient.id,
+      titolo: src.titolo,
+      autore: src.autore,
+      file_path: destPath,
+      cover_url: src.cover_url,
+      status: src.status,
+      is_modified: src.is_modified,
+    });
+    if (e5) {
+      await supabaseAdmin.storage.from("ebooks").remove([destPath]);
+      throw new Error(`Salvataggio fallito: ${e5.message}`);
+    }
+
+    return { ok: true, recipient: recipient.email ?? data.email };
+  });
+
 /** Public: Kobo browser asks for a signed download URL for one of its books. */
 export const getKoboDownloadUrl = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string; ebookId: string }) => ({
