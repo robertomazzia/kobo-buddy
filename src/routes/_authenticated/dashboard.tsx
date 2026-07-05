@@ -38,8 +38,6 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-type SortKey = "recent" | "oldest" | "title-asc" | "title-desc";
-
 function Dashboard() {
   const navigate = useNavigate();
   const [email, setEmail] = useState<string>("");
@@ -49,11 +47,9 @@ function Dashboard() {
   const listDevicesFn = useServerFn(listKoboDevices);
   const revoke = useServerFn(revokeKoboDevice);
   const listFn = useServerFn(listEbooks);
-  const deleteFn = useServerFn(deleteEbook);
 
   const [devices, setDevices] = useState<KoboDevice[]>([]);
   const [ebooks, setEbooks] = useState<EbookListItem[]>([]);
-  const [sort, setSort] = useState<SortKey>("recent");
   const [activePin, setActivePin] = useState<{ pin: string; expiresAt: string } | null>(null);
   const [pinBusy, setPinBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -113,17 +109,6 @@ function Dashboard() {
     await refresh();
   }
 
-  async function handleDeleteEbook(id: string, title: string) {
-    if (!window.confirm(`Eliminare "${title}"?`)) return;
-    try {
-      await deleteFn({ data: { id } });
-      toast.success("Libro eliminato");
-      setEbooks((prev) => prev.filter((b) => b.id !== id));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Eliminazione fallita");
-    }
-  }
-
   function handleFile(file: File) {
     if (!/\.epub$/i.test(file.name) && file.type !== "application/epub+zip") {
       toast.error("Seleziona un file .epub");
@@ -136,18 +121,6 @@ function Dashboard() {
   const activeExpiryMs = activePin ? new Date(activePin.expiresAt).getTime() - now : 0;
   const activeExpired = activePin ? activeExpiryMs <= 0 : false;
 
-  const sortedEbooks = [...ebooks].sort((a, b) => {
-    switch (sort) {
-      case "recent":
-        return new Date(b.caricato_il).getTime() - new Date(a.caricato_il).getTime();
-      case "oldest":
-        return new Date(a.caricato_il).getTime() - new Date(b.caricato_il).getTime();
-      case "title-asc":
-        return a.titolo.localeCompare(b.titolo, "it", { sensitivity: "base" });
-      case "title-desc":
-        return b.titolo.localeCompare(a.titolo, "it", { sensitivity: "base" });
-    }
-  });
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted">
@@ -192,17 +165,25 @@ function Dashboard() {
         </section>
 
         <div className="grid grid-cols-2 gap-3">
-          <Card className="p-4">
-            <Library className="h-5 w-5 text-primary mb-2" />
-            <p className="text-2xl font-bold">{ebooks.length}</p>
-            <p className="text-xs text-muted-foreground">ePub in libreria</p>
-          </Card>
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/library" })}
+            className="text-left"
+            aria-label="Vai alla libreria"
+          >
+            <Card className="p-4 transition-colors hover:bg-accent/40 active:scale-[0.98]">
+              <Library className="h-5 w-5 text-primary mb-2" />
+              <p className="text-2xl font-bold">{ebooks.length}</p>
+              <p className="text-xs text-muted-foreground">ePub in libreria</p>
+            </Card>
+          </button>
           <Card className="p-4">
             <Smartphone className="h-5 w-5 text-primary mb-2" />
             <p className="text-2xl font-bold">{devices.length}</p>
             <p className="text-xs text-muted-foreground">Kobo associati</p>
           </Card>
         </div>
+
 
         {/* Unified upload */}
         <Card
