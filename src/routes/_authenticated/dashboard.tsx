@@ -14,7 +14,6 @@ import {
   Trash2,
   Check,
   Clock,
-  ArrowUpDown,
   ShieldCheck,
 } from "lucide-react";
 import {
@@ -23,14 +22,11 @@ import {
   revokeKoboDevice,
   type KoboDevice,
 } from "@/lib/kobo.functions";
-import {
-  listEbooks,
-  deleteEbook,
-  type EbookListItem,
-} from "@/lib/library.functions";
+import { listEbooks, type EbookListItem } from "@/lib/library.functions";
 import { setPendingEpub } from "@/lib/pending-upload";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
+import { BottomNav } from "@/components/bottom-nav";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({

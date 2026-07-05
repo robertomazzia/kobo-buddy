@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedOptimizerRouteImport } from './routes/_authenticated/optimizer'
+import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAdminWhitelistRouteImport } from './routes/_authenticated/admin.whitelist'
 import { Route as ApiPublicKoboRedeemRouteImport } from './routes/api/public/kobo.redeem'
@@ -43,6 +44,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthenticatedOptimizerRoute = AuthenticatedOptimizerRouteImport.update({
   id: '/optimizer',
   path: '/optimizer',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedLibraryRoute = AuthenticatedLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/kobo': typeof KoboRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/library': typeof AuthenticatedLibraryRoute
   '/optimizer': typeof AuthenticatedOptimizerRoute
   '/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
   '/api/public/kobo/delete': typeof ApiPublicKoboDeleteRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/kobo': typeof KoboRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/library': typeof AuthenticatedLibraryRoute
   '/optimizer': typeof AuthenticatedOptimizerRoute
   '/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
   '/api/public/kobo/delete': typeof ApiPublicKoboDeleteRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/kobo': typeof KoboRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/library': typeof AuthenticatedLibraryRoute
   '/_authenticated/optimizer': typeof AuthenticatedOptimizerRoute
   '/_authenticated/admin/whitelist': typeof AuthenticatedAdminWhitelistRoute
   '/api/public/kobo/delete': typeof ApiPublicKoboDeleteRoute
@@ -122,6 +131,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/kobo'
     | '/dashboard'
+    | '/library'
     | '/optimizer'
     | '/admin/whitelist'
     | '/api/public/kobo/delete'
@@ -134,6 +144,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/kobo'
     | '/dashboard'
+    | '/library'
     | '/optimizer'
     | '/admin/whitelist'
     | '/api/public/kobo/delete'
@@ -147,6 +158,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/kobo'
     | '/_authenticated/dashboard'
+    | '/_authenticated/library'
     | '/_authenticated/optimizer'
     | '/_authenticated/admin/whitelist'
     | '/api/public/kobo/delete'
@@ -203,6 +215,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOptimizerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/library': {
+      id: '/_authenticated/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof AuthenticatedLibraryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -250,12 +269,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedLibraryRoute: typeof AuthenticatedLibraryRoute
   AuthenticatedOptimizerRoute: typeof AuthenticatedOptimizerRoute
   AuthenticatedAdminWhitelistRoute: typeof AuthenticatedAdminWhitelistRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedLibraryRoute: AuthenticatedLibraryRoute,
   AuthenticatedOptimizerRoute: AuthenticatedOptimizerRoute,
   AuthenticatedAdminWhitelistRoute: AuthenticatedAdminWhitelistRoute,
 }
