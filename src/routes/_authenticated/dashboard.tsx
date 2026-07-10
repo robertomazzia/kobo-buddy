@@ -139,6 +139,7 @@ function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <InstallPwaButton />
             {isAdmin && (
               <Button
                 size="icon"
