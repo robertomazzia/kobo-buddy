@@ -27,6 +27,7 @@ import { setPendingEpub } from "@/lib/pending-upload";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { BottomNav } from "@/components/bottom-nav";
+import { InstallPwaButton } from "@/components/install-pwa-button";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
