@@ -89,6 +89,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:description", content: "Kobo Book Buddy manages your EPUB library, optimizing and uploading books to your Kobo device." },
       { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/4JueHGscv7OxmlCyPG1Rttb42KA2/social-images/social-1782717306913-buddy-icon.webp" },
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/4JueHGscv7OxmlCyPG1Rttb42KA2/social-images/social-1782717306913-buddy-icon.webp" },
+      { name: "theme-color", content: "#1e3a8a" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "KoboBuddy" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
