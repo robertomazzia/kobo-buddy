@@ -37,6 +37,7 @@ function AdminWhitelist() {
   const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
   const [adding, setAdding] = useState(false);
+  const createUser = useServerFn(createWhitelistedUser);
 
   const load = useCallback(async () => {
     setLoading(true);
