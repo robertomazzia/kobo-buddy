@@ -192,7 +192,7 @@ function AdminWhitelist() {
               ) : (
                 <UserPlus className="h-4 w-4 mr-2" />
               )}
-              Aggiungi alla whitelist
+              Crea utente e abilita
             </Button>
           </form>
         </Card>
