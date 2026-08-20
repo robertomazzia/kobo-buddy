@@ -1,5 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
+import { createWhitelistedUser } from "@/lib/admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,6 +37,7 @@ function AdminWhitelist() {
   const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
   const [adding, setAdding] = useState(false);
+  const createUser = useServerFn(createWhitelistedUser);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,19 +79,23 @@ function AdminWhitelist() {
       return;
     }
     setAdding(true);
-    const { error } = await supabase
-      .from("allowed_users")
-      .insert({ email: clean, note: note.trim() || null });
-    setAdding(false);
-    if (error) {
-      if (error.code === "23505") toast.error("Email già in whitelist");
-      else toast.error("Impossibile aggiungere l'email");
-      return;
+    try {
+      const res = await createUser({ data: { email: clean, note: note.trim() || null } });
+      if (res.alreadyWhitelisted && res.alreadyRegistered) {
+        toast.info("Utente già presente e attivo");
+      } else if (res.alreadyRegistered) {
+        toast.success("Email abilitata (account già esistente)");
+      } else {
+        toast.success("Utente creato e abilitato");
+      }
+      setEmail("");
+      setNote("");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Impossibile creare l'utente");
+    } finally {
+      setAdding(false);
     }
-    toast.success("Email aggiunta alla whitelist");
-    setEmail("");
-    setNote("");
-    await load();
   }
 
   async function remove(id: string, mail: string) {
@@ -185,7 +192,7 @@ function AdminWhitelist() {
               ) : (
                 <UserPlus className="h-4 w-4 mr-2" />
               )}
-              Aggiungi alla whitelist
+              Crea utente e abilita
             </Button>
           </form>
         </Card>
