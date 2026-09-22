@@ -592,6 +592,8 @@ function labelFor(source: DetectedChapter["source"]): string {
     case "keyword": return "KW";
     case "break": return "BR";
     case "toc": return "TOC";
+    case "number": return "N°";
     case "fallback": return "—";
+    default: return "—";
   }
 }
