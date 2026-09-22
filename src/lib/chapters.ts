@@ -164,7 +164,7 @@ function scanHtml(html: string): RawBreak[] {
 
   const order = new Map<Node, number>();
   {
-    const all = body.getElementsByTagName("*");
+    const all = body.querySelectorAll("*");
     for (let i = 0; i < all.length; i++) order.set(all[i], i);
   }
   const posOf = (n: Node | null): number => (n ? (order.get(n) ?? 0) : 0);
@@ -289,7 +289,7 @@ function scanNumericSequence(
   posOf: (n: Node | null) => number,
 ): RawBreak[] {
   const candidates: { el: Element; num: number; text: string }[] = [];
-  const els = body.getElementsByTagName("*");
+  const els = body.querySelectorAll("*");
   for (let i = 0; i < els.length; i++) {
     const el = els[i];
     const tag = el.tagName.toLowerCase();
