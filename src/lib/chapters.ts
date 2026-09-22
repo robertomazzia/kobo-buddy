@@ -10,7 +10,9 @@ export interface DetectedChapter {
   /** title to display in TOC */
   title: string;
   /** which heuristic produced this break */
-  source: "heading" | "bold" | "keyword" | "break" | "toc" | "fallback";
+  source: "heading" | "bold" | "keyword" | "break" | "toc" | "fallback" | "number";
+  /** text of the block where an anchor id must be injected at export time */
+  injectText?: string;
   /** 0..1 confidence */
   confidence: number;
   /** initially picked? */
