@@ -517,6 +517,46 @@ function escapeAttr(s: string): string {
   return escapeText(s).replace(/"/g, "&quot;");
 }
 
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Add id attributes to blocks detected as chapter starts but lacking one. */
+async function injectAnchors(epub: LoadedEpub, chapters: DetectedChapter[]): Promise<void> {
+  const byFile = new Map<string, DetectedChapter[]>();
+  for (const c of chapters) {
+    if (!c.injectText || !c.anchor) continue;
+    const list = byFile.get(c.href) ?? [];
+    list.push(c);
+    byFile.set(c.href, list);
+  }
+
+  for (const [href, list] of byFile) {
+    const file = epub.zip.file(href);
+    if (!file) continue;
+    let text = await file.async("string");
+    let changed = false;
+
+    for (const c of list) {
+      if (new RegExp(`id\\s*=\\s*["']${escapeRe(c.anchor!)}["']`).test(text)) continue;
+      const re = new RegExp(
+        `<(p|div|h[1-6])((?:\\s[^>]*)?)>(\\s*${escapeRe(c.injectText!)}\\s*)</\\1>`,
+        "gi",
+      );
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(text))) {
+        if (/\sid\s*=/i.test(m[2])) continue;
+        const replacement = `<${m[1]} id="${c.anchor}"${m[2]}>${m[3]}</${m[1]}>`;
+        text = text.slice(0, m.index) + replacement + text.slice(m.index + m[0].length);
+        changed = true;
+        break;
+      }
+    }
+
+    if (changed) epub.zip.file(href, text);
+  }
+}
+
 /**
  * Write nav.xhtml + toc.ncx into the zip, updating the OPF manifest & spine
  * so e-readers (and Kobo) pick up the new structure.
