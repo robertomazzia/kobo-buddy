@@ -388,6 +388,7 @@ export async function detectChapters(
         id: `c${++idx}`,
         href,
         anchor: b.anchor,
+        injectText: b.injectText,
         title: b.title,
         source: b.source,
         confidence: b.confidence,
