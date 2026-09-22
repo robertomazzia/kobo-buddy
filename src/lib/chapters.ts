@@ -530,6 +530,10 @@ export async function applyChapters(
   let opfText = await opfFile.async("string");
   const opf = new DOMParser().parseFromString(opfText, "application/xml");
 
+  // Chapters detected from plain numeric blocks have no id in the source file:
+  // inject one so the TOC links can jump to the exact spot.
+  await injectAnchors(epub, chapters);
+
   const opfDir = epub.meta.opfDir;
   const navText = buildNavXhtml(chapters, opfDir, epub.meta.title);
   const ncxText = buildNcx(chapters, opfDir, epub.meta.title);
