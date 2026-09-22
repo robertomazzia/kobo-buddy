@@ -406,6 +406,8 @@ export async function detectChapters(
     if (
       next &&
       cur.href === next.href &&
+      cur.source !== "number" &&
+      next.source !== "number" &&
       JUST_KEYWORD_RE.test(cur.title) &&
       !JUST_KEYWORD_RE.test(next.title)
     ) {
