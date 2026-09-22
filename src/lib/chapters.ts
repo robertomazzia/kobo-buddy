@@ -220,17 +220,35 @@ function scanHtml(html: string): RawBreak[] {
 
       if (isKeyword && isShort(text)) {
         push(
-          { anchor: el.id || undefined, title: text, source: "keyword", confidence: 0.9 },
+          {
+            anchor: el.id || undefined,
+            title: text,
+            source: "keyword",
+            confidence: 0.9,
+            pos: posOf(el),
+          },
           `kw:${text}`,
         );
       } else if (isBold && isShort(text)) {
         push(
-          { anchor: el.id || undefined, title: text, source: "bold", confidence: 0.55 },
+          {
+            anchor: el.id || undefined,
+            title: text,
+            source: "bold",
+            confidence: 0.55,
+            pos: posOf(el),
+          },
           `b:${text}`,
         );
       } else if (isBigFont && isShort(text)) {
         push(
-          { anchor: el.id || undefined, title: text, source: "bold", confidence: 0.55 },
+          {
+            anchor: el.id || undefined,
+            title: text,
+            source: "bold",
+            confidence: 0.55,
+            pos: posOf(el),
+          },
           `f:${text}`,
         );
       }
@@ -247,13 +265,68 @@ function scanHtml(html: string): RawBreak[] {
       if (n) {
         const text = cleanTitle((n.textContent ?? "").split(/\n|<br/i)[0] ?? "");
         if (isShort(text)) {
-          push({ title: text, source: "break", confidence: 0.4 }, `br:${text}`);
+          push({ title: text, source: "break", confidence: 0.4, pos: posOf(brs[i]) }, `br:${text}`);
         }
       }
     }
   }
 
-  return breaks;
+  // 4) Numeric-only blocks forming an ascending sequence ("1", "2", "3"...)
+  for (const b of scanNumericSequence(body, posOf)) {
+    push(b, `n:${b.title}`);
+  }
+
+  return breaks.sort((a, b) => a.pos - b.pos);
+}
+
+/**
+ * Many ePub converted from PDF have no headings: chapters are marked only by a
+ * block containing just the chapter number. Accept them only when they form a
+ * mostly-ascending sequence, to avoid picking up page numbers or stray digits.
+ */
+function scanNumericSequence(
+  body: HTMLElement | Element,
+  posOf: (n: Node | null) => number,
+): RawBreak[] {
+  const candidates: { el: Element; num: number; text: string }[] = [];
+  const els = body.getElementsByTagName("*");
+  for (let i = 0; i < els.length; i++) {
+    const el = els[i];
+    const tag = el.tagName.toLowerCase();
+    if (!["p", "div", "h1", "h2", "h3", "h4", "h5", "h6"].includes(tag)) continue;
+    // must contain no nested block element
+    if (el.querySelector("p,div,h1,h2,h3,h4,h5,h6")) continue;
+    const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
+    if (!/^\d{1,3}$/.test(text)) continue;
+    candidates.push({ el, num: parseInt(text, 10), text });
+  }
+  if (candidates.length < 3) return [];
+
+  // keep the longest ascending run
+  let bestStart = 0;
+  let bestLen = 1;
+  let start = 0;
+  for (let i = 1; i <= candidates.length; i++) {
+    const asc = i < candidates.length && candidates[i].num > candidates[i - 1].num;
+    if (!asc) {
+      const len = i - start;
+      if (len > bestLen) {
+        bestLen = len;
+        bestStart = start;
+      }
+      start = i;
+    }
+  }
+  if (bestLen < 3) return [];
+
+  return candidates.slice(bestStart, bestStart + bestLen).map((c) => ({
+    anchor: c.el.id || `kbch-${c.num}`,
+    injectText: c.el.id ? undefined : c.text,
+    title: `Capitolo ${c.num}`,
+    source: "number" as const,
+    confidence: 0.75,
+    pos: posOf(c.el),
+  }));
 }
 
 /** Regex matching titles that are *just* a chapter keyword (e.g. "Capitolo 1"). */
