@@ -150,6 +150,10 @@ interface RawBreak {
   title: string;
   source: DetectedChapter["source"];
   confidence: number;
+  /** document order of the element that produced this break */
+  pos: number;
+  /** exact block text where an anchor id must be injected at export time */
+  injectText?: string;
 }
 
 /** Heuristic scan of a single HTML document. */
@@ -157,6 +161,13 @@ function scanHtml(html: string): RawBreak[] {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const body = doc.body ?? doc.documentElement;
   if (!body) return [];
+
+  const order = new Map<Node, number>();
+  {
+    const all = body.getElementsByTagName("*");
+    for (let i = 0; i < all.length; i++) order.set(all[i], i);
+  }
+  const posOf = (n: Node | null): number => (n ? (order.get(n) ?? 0) : 0);
 
   const breaks: RawBreak[] = [];
   const seen = new Set<string>();
@@ -167,6 +178,7 @@ function scanHtml(html: string): RawBreak[] {
     seen.add(key);
     breaks.push(b);
   }
+
 
   // 1) Headings h1..h6
   for (const tag of ["h1", "h2", "h3", "h4", "h5", "h6"]) {
