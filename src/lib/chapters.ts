@@ -193,6 +193,7 @@ function scanHtml(html: string): RawBreak[] {
           title: text,
           source: "heading",
           confidence: Math.max(0.5, 1 - (level - 1) * 0.1),
+          pos: posOf(el),
         },
         `${tag}:${text}`,
       );
