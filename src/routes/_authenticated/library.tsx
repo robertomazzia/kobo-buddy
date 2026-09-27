@@ -11,6 +11,7 @@ import {
   deleteEbook,
   getOwnEbookDownloadUrl,
   shareEbook,
+  setEbookDownloaded,
   type EbookListItem,
 } from "@/lib/library.functions";
 import { BottomNav } from "@/components/bottom-nav";
@@ -21,6 +22,7 @@ import {
   Share2,
   Loader2,
   X,
+  RotateCcw,
   Library as LibraryIcon,
 } from "lucide-react";
 
