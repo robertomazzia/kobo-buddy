@@ -138,10 +138,15 @@ function LibraryPage() {
     }
   }
 
-  const sorted = ebooks
+  const all = ebooks
     ? [...ebooks].sort(
         (a, b) => new Date(b.caricato_il).getTime() - new Date(a.caricato_il).getTime(),
       )
+    : null;
+  const todoCount = all ? all.filter((b) => !b.scaricato_il).length : 0;
+  const doneCount = all ? all.length - todoCount : 0;
+  const sorted = all
+    ? all.filter((b) => (tab === "archive" ? !!b.scaricato_il : !b.scaricato_il))
     : null;
 
   return (
