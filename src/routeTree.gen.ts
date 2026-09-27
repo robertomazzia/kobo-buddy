@@ -18,6 +18,7 @@ import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAdminWhitelistRouteImport } from './routes/_authenticated/admin.whitelist'
 import { Route as ApiPublicKoboRedeemRouteImport } from './routes/api/public/kobo.redeem'
+import { Route as ApiPublicKoboMarkRouteImport } from './routes/api/public/kobo.mark'
 import { Route as ApiPublicKoboLibraryRouteImport } from './routes/api/public/kobo.library'
 import { Route as ApiPublicKoboDownloadRouteImport } from './routes/api/public/kobo.download'
 import { Route as ApiPublicKoboDeleteRouteImport } from './routes/api/public/kobo.delete'
@@ -67,6 +68,11 @@ const ApiPublicKoboRedeemRoute = ApiPublicKoboRedeemRouteImport.update({
   path: '/api/public/kobo/redeem',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicKoboMarkRoute = ApiPublicKoboMarkRouteImport.update({
+  id: '/api/public/kobo/mark',
+  path: '/api/public/kobo/mark',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicKoboLibraryRoute = ApiPublicKoboLibraryRouteImport.update({
   id: '/api/public/kobo/library',
   path: '/api/public/kobo/library',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/api/public/kobo/delete': typeof ApiPublicKoboDeleteRoute
   '/api/public/kobo/download': typeof ApiPublicKoboDownloadRoute
   '/api/public/kobo/library': typeof ApiPublicKoboLibraryRoute
+  '/api/public/kobo/mark': typeof ApiPublicKoboMarkRoute
   '/api/public/kobo/redeem': typeof ApiPublicKoboRedeemRoute
 }
 export interface FileRoutesByTo {
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/api/public/kobo/delete': typeof ApiPublicKoboDeleteRoute
   '/api/public/kobo/download': typeof ApiPublicKoboDownloadRoute
   '/api/public/kobo/library': typeof ApiPublicKoboLibraryRoute
+  '/api/public/kobo/mark': typeof ApiPublicKoboMarkRoute
   '/api/public/kobo/redeem': typeof ApiPublicKoboRedeemRoute
 }
 export interface FileRoutesById {
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/api/public/kobo/delete': typeof ApiPublicKoboDeleteRoute
   '/api/public/kobo/download': typeof ApiPublicKoboDownloadRoute
   '/api/public/kobo/library': typeof ApiPublicKoboLibraryRoute
+  '/api/public/kobo/mark': typeof ApiPublicKoboMarkRoute
   '/api/public/kobo/redeem': typeof ApiPublicKoboRedeemRoute
 }
 export interface FileRouteTypes {
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/api/public/kobo/delete'
     | '/api/public/kobo/download'
     | '/api/public/kobo/library'
+    | '/api/public/kobo/mark'
     | '/api/public/kobo/redeem'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/api/public/kobo/delete'
     | '/api/public/kobo/download'
     | '/api/public/kobo/library'
+    | '/api/public/kobo/mark'
     | '/api/public/kobo/redeem'
   id:
     | '__root__'
@@ -164,6 +175,7 @@ export interface FileRouteTypes {
     | '/api/public/kobo/delete'
     | '/api/public/kobo/download'
     | '/api/public/kobo/library'
+    | '/api/public/kobo/mark'
     | '/api/public/kobo/redeem'
   fileRoutesById: FileRoutesById
 }
@@ -175,6 +187,7 @@ export interface RootRouteChildren {
   ApiPublicKoboDeleteRoute: typeof ApiPublicKoboDeleteRoute
   ApiPublicKoboDownloadRoute: typeof ApiPublicKoboDownloadRoute
   ApiPublicKoboLibraryRoute: typeof ApiPublicKoboLibraryRoute
+  ApiPublicKoboMarkRoute: typeof ApiPublicKoboMarkRoute
   ApiPublicKoboRedeemRoute: typeof ApiPublicKoboRedeemRoute
 }
 
@@ -243,6 +256,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicKoboRedeemRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/kobo/mark': {
+      id: '/api/public/kobo/mark'
+      path: '/api/public/kobo/mark'
+      fullPath: '/api/public/kobo/mark'
+      preLoaderRoute: typeof ApiPublicKoboMarkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/kobo/library': {
       id: '/api/public/kobo/library'
       path: '/api/public/kobo/library'
@@ -292,6 +312,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicKoboDeleteRoute: ApiPublicKoboDeleteRoute,
   ApiPublicKoboDownloadRoute: ApiPublicKoboDownloadRoute,
   ApiPublicKoboLibraryRoute: ApiPublicKoboLibraryRoute,
+  ApiPublicKoboMarkRoute: ApiPublicKoboMarkRoute,
   ApiPublicKoboRedeemRoute: ApiPublicKoboRedeemRoute,
 }
 export const routeTree = rootRouteImport

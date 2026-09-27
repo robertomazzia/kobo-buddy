@@ -41,6 +41,11 @@
   .title { font-weight:bold; }
   .author { font-weight:normal; }
   .date { display:block; font-size:14px; font-weight:normal; margin-top:4px; }
+  .tabs { margin:0 0 6px 0; }
+  .tab { display:inline-block; border:2px solid #000; padding:10px 12px;
+         font-size:17px; text-decoration:none; color:#000; background:#fff;
+         margin-right:8px; }
+  .tab.on { background:#000; color:#fff; font-weight:bold; }
 </style>
 </head>
 <body>
@@ -49,6 +54,7 @@
 <script>
 /* Vanilla ES5 — must run on the old WebKit shipped with Kobo Aura HD / Clara BW. */
 var API_BASE = 'https://qgkgecfagagfiesawodw.supabase.co/functions/v1';
+var APP_BASE = 'https://kobo-buddy.lovable.app';
 var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFna2dlY2ZhZ2FnZmllc2F3b2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MDMxNjksImV4cCI6MjA5ODE3OTE2OX0.-qV8qio1yWlU99SIVFF3AuC6DvcqLX2at_AVhY97iuk';
 var sessionToken = null;
 try { sessionToken = window.localStorage.getItem('kobo_t'); } catch (e) { sessionToken = null; }
@@ -68,6 +74,20 @@ function xhrPost(url, payload, cb) {
   xhr.setRequestHeader('Content-Type', 'application/json');
   xhr.setRequestHeader('apikey', SUPABASE_ANON);
   xhr.setRequestHeader('Authorization', 'Bearer ' + SUPABASE_ANON);
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState !== 4) return;
+    var data = null;
+    try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
+    cb(xhr.status, data);
+  };
+  try { xhr.send(JSON.stringify(payload)); }
+  catch (e) { cb(0, null); }
+}
+
+function xhrPostPlain(url, payload, cb) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', url, true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
   xhr.onreadystatechange = function () {
     if (xhr.readyState !== 4) return;
     var data = null;
@@ -125,6 +145,14 @@ function logout() {
   return false;
 }
 
+var currentView = 'todo';
+
+function showView(view) {
+  currentView = view;
+  renderLibrary();
+  return false;
+}
+
 function renderLibrary() {
   setRoot('<h1>La tua libreria</h1><p>Caricamento...</p>');
   xhrPost(API_BASE + '/kobo-library', { token: sessionToken }, function (status, data) {
@@ -138,14 +166,30 @@ function renderLibrary() {
       setRoot('<h1>La tua libreria</h1><div class="err">Errore di rete. Aggiorna la pagina.</div>');
       return;
     }
-    var header = ''
-      + '<h1>La tua libreria</h1>'
-      + '<p class="info">Collegato come ' + esc(data.displayName || data.email || 'utente')
-      + ' &nbsp; <a href="#" class="logout" onclick="return logout();">[Esci]</a></p>';
 
-    var books = data.books || [];
+    var all = data.books || [];
+    var todo = [];
+    var done = [];
+    for (var k = 0; k < all.length; k++) {
+      if (all[k].scaricato_il) { done.push(all[k]); } else { todo.push(all[k]); }
+    }
+    var books = (currentView === 'archive') ? done : todo;
+
+    var header = ''
+      + '<h1>' + (currentView === 'archive' ? 'Archivio' : 'Da scaricare') + '</h1>'
+      + '<p class="info">Collegato come ' + esc(data.displayName || data.email || 'utente')
+      + ' &nbsp; <a href="#" class="logout" onclick="return logout();">[Esci]</a></p>'
+      + '<p class="tabs">'
+      + (currentView === 'archive'
+          ? '<a href="#" class="tab" onclick="return showView(\'todo\');">Da scaricare (' + todo.length + ')</a> <span class="tab on">Archivio (' + done.length + ')</span>'
+          : '<span class="tab on">Da scaricare (' + todo.length + ')</span> <a href="#" class="tab" onclick="return showView(\'archive\');">Archivio (' + done.length + ')</a>')
+      + '</p>';
+
     if (books.length === 0) {
-      setRoot(header + '<p>Nessun ePub pronto. Ottimizza un libro dal telefono e tornera qui.</p>');
+      var empty = (currentView === 'archive')
+        ? 'Nessun libro ancora scaricato.'
+        : 'Nessun nuovo ePub. Tutti i libri sono in Archivio.';
+      setRoot(header + '<p>' + empty + '</p><div id="error"></div>');
       return;
     }
     var rows = '';
@@ -153,17 +197,30 @@ function renderLibrary() {
       var b = books[i];
       var label = esc(b.titolo);
       if (b.autore) label += ' <span class="author">- ' + esc(b.autore) + '</span>';
-      var dateStr = formatDate(b.caricato_il);
+      var dateStr = (currentView === 'archive' && b.scaricato_il)
+        ? 'Scaricato il ' + formatDate(b.scaricato_il)
+        : formatDate(b.caricato_il);
       var modBadge = b.is_modified ? ' (Modificato)' : '';
+      var safeTitle = esc(b.titolo).replace(/'/g, "\\'");
+      var extra = (currentView === 'archive')
+        ? '<a class="del" href="#" onclick="return markBook(\'' + esc(b.id) + '\', false);">[Da scaricare]</a> '
+        : '';
       rows += '<tr>'
             + '<td><span class="title">' + label + '</span>'
             +   '<span class="date">' + dateStr + modBadge + '</span></td>'
             + '<td class="dl"><a class="dl" href="#" onclick="return startDownload(\'' + esc(b.id) + '\');">DOWNLOAD</a></td>'
-            + '<td class="del"><a class="del" href="#" onclick="return removeBook(\'' + esc(b.id) + '\',\'' + esc(b.titolo).replace(/'/g, "\\'") + '\');">[Elimina]</a></td>'
+            + '<td class="del">' + extra + '<a class="del" href="#" onclick="return removeBook(\'' + esc(b.id) + '\',\'' + safeTitle + '\');">[Elimina]</a></td>'
             + '</tr>';
     }
     setRoot(header + '<table class="books">' + rows + '</table><div id="error"></div>');
   });
+}
+
+function markBook(id, downloaded) {
+  xhrPostPlain(APP_BASE + '/api/public/kobo/mark',
+    { token: sessionToken, ebookId: id, downloaded: downloaded },
+    function () { renderLibrary(); });
+  return false;
 }
 
 function formatDate(iso) {

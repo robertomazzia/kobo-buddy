@@ -69,6 +69,7 @@ export interface EbookListItem {
   caricato_il: string;
   is_modified: boolean;
   cover_url: string | null;
+  scaricato_il: string | null;
 }
 
 export const listEbooks = createServerFn({ method: "GET" })
@@ -77,10 +78,29 @@ export const listEbooks = createServerFn({ method: "GET" })
     const { supabase } = context;
     const { data, error } = await supabase
       .from("ebooks")
-      .select("id, titolo, autore, status, caricato_il, is_modified, cover_url")
+      .select("id, titolo, autore, status, caricato_il, is_modified, cover_url, scaricato_il")
       .order("caricato_il", { ascending: false });
     if (error) throw error;
     return (data ?? []) as EbookListItem[];
+  });
+
+/** Mark an ebook as downloaded (archive) or put it back in the "to download" list. */
+export const setEbookDownloaded = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; downloaded: boolean }) => ({
+    id: String(d.id ?? ""),
+    downloaded: !!d.downloaded,
+  }))
+  .handler(async ({ data, context }): Promise<{ ok: true; scaricato_il: string | null }> => {
+    const { supabase, userId } = context;
+    const value = data.downloaded ? new Date().toISOString() : null;
+    const { error } = await supabase
+      .from("ebooks")
+      .update({ scaricato_il: value })
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw error;
+    return { ok: true, scaricato_il: value };
   });
 
 export const deleteEbook = createServerFn({ method: "POST" })
@@ -122,6 +142,11 @@ export const getOwnEbookDownloadUrl = createServerFn({ method: "POST" })
       .from("ebooks")
       .createSignedUrl(row.file_path, 300, { download: `${safe}.epub` });
     if (e2 || !signed?.signedUrl) throw new Error("Impossibile generare il link");
+    await supabase
+      .from("ebooks")
+      .update({ scaricato_il: new Date().toISOString() })
+      .eq("id", data.id)
+      .eq("user_id", userId);
     return { url: signed.signedUrl, fileName: `${safe}.epub` };
   });
 

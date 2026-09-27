@@ -11,6 +11,7 @@ import {
   deleteEbook,
   getOwnEbookDownloadUrl,
   shareEbook,
+  setEbookDownloaded,
   type EbookListItem,
 } from "@/lib/library.functions";
 import { BottomNav } from "@/components/bottom-nav";
@@ -21,6 +22,7 @@ import {
   Share2,
   Loader2,
   X,
+  RotateCcw,
   Library as LibraryIcon,
 } from "lucide-react";
 
@@ -40,7 +42,9 @@ function LibraryPage() {
   const deleteFn = useServerFn(deleteEbook);
   const downloadFn = useServerFn(getOwnEbookDownloadUrl);
   const shareFn = useServerFn(shareEbook);
+  const markFn = useServerFn(setEbookDownloaded);
 
+  const [tab, setTab] = useState<"todo" | "archive">("todo");
   const [ebooks, setEbooks] = useState<EbookListItem[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState<string | null>(null);
@@ -71,10 +75,26 @@ function LibraryPage() {
       document.body.appendChild(a);
       a.click();
       a.remove();
+      const when = new Date().toISOString();
+      setEbooks((prev) =>
+        prev ? prev.map((b) => (b.id === id ? { ...b, scaricato_il: when } : b)) : prev,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Download fallito");
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function handleMark(id: string, downloaded: boolean) {
+    try {
+      const res = await markFn({ data: { id, downloaded } });
+      setEbooks((prev) =>
+        prev ? prev.map((b) => (b.id === id ? { ...b, scaricato_il: res.scaricato_il } : b)) : prev,
+      );
+      toast.success(downloaded ? "Spostato in archivio" : "Rimesso tra i da scaricare");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Operazione fallita");
     }
   }
 
@@ -118,10 +138,15 @@ function LibraryPage() {
     }
   }
 
-  const sorted = ebooks
+  const all = ebooks
     ? [...ebooks].sort(
         (a, b) => new Date(b.caricato_il).getTime() - new Date(a.caricato_il).getTime(),
       )
+    : null;
+  const todoCount = all ? all.filter((b) => !b.scaricato_il).length : 0;
+  const doneCount = all ? all.length - todoCount : 0;
+  const sorted = all
+    ? all.filter((b) => (tab === "archive" ? !!b.scaricato_il : !b.scaricato_il))
     : null;
 
   return (
@@ -144,7 +169,7 @@ function LibraryPage() {
             <div>
               <p className="text-sm font-semibold leading-none">Libreria</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                {sorted ? `${sorted.length} ePub` : "…"}
+                {all ? `${all.length} ePub` : "…"}
               </p>
             </div>
           </div>
@@ -152,6 +177,22 @@ function LibraryPage() {
       </header>
 
       <main className="max-w-md mx-auto px-4 py-6">
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          <Button
+            variant={tab === "todo" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTab("todo")}
+          >
+            Da scaricare ({todoCount})
+          </Button>
+          <Button
+            variant={tab === "archive" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTab("archive")}
+          >
+            Archivio ({doneCount})
+          </Button>
+        </div>
         <Card className="p-2">
           {sorted === null ? (
             <div className="flex items-center justify-center py-10 text-muted-foreground">
@@ -159,7 +200,9 @@ function LibraryPage() {
             </div>
           ) : sorted.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">
-              Nessun libro ancora. Carica il tuo primo ePub.
+              {tab === "archive"
+                ? "Nessun libro ancora scaricato."
+                : "Nessun libro da scaricare."}
             </p>
           ) : (
             <ul className="divide-y">
@@ -177,10 +220,22 @@ function LibraryPage() {
                           </p>
                         )}
                         <p className="text-[10px] text-muted-foreground mt-0.5">
-                          Caricato il {formatDate(b.caricato_il)}
+                          {b.scaricato_il
+                            ? `Scaricato il ${formatDate(b.scaricato_il)}`
+                            : `Caricato il ${formatDate(b.caricato_il)}`}
                         </p>
                       </div>
                       <div className="flex items-center gap-0.5">
+                        {b.scaricato_il && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleMark(b.id, false)}
+                            aria-label="Rimetti tra i da scaricare"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           size="icon"
                           variant="ghost"

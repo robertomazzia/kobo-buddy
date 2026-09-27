@@ -44,6 +44,7 @@ export type Database = {
           file_path: string | null
           id: string
           is_modified: boolean
+          scaricato_il: string | null
           status: string
           titolo: string
           user_id: string
@@ -56,6 +57,7 @@ export type Database = {
           file_path?: string | null
           id?: string
           is_modified?: boolean
+          scaricato_il?: string | null
           status?: string
           titolo: string
           user_id: string
@@ -68,6 +70,7 @@ export type Database = {
           file_path?: string | null
           id?: string
           is_modified?: boolean
+          scaricato_il?: string | null
           status?: string
           titolo?: string
           user_id?: string
@@ -170,6 +173,7 @@ export type Database = {
           cover_url: string
           id: string
           is_modified: boolean
+          scaricato_il: string
           status: string
           titolo: string
         }[]
@@ -179,6 +183,10 @@ export type Database = {
         Returns: {
           file_path: string
         }[]
+      }
+      kobo_session_mark_downloaded: {
+        Args: { _downloaded: boolean; _ebook_id: string; _token: string }
+        Returns: boolean
       }
       kobo_session_owner: {
         Args: { _token: string }

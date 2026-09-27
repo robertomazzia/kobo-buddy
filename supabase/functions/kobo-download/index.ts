@@ -57,6 +57,11 @@ Deno.serve(async (req) => {
       .createSignedUrl(ebook.file_path, 300, { download: `${safe}.epub` });
     if (e3 || !signed?.signedUrl) return json({ error: "Impossibile generare il link" }, 500);
 
+    await supabaseAdmin
+      .from("ebooks")
+      .update({ scaricato_il: new Date().toISOString() })
+      .eq("id", ebook.id);
+
     return json({ url: signed.signedUrl, fileName: `${safe}.epub` });
   } catch (err) {
     console.error("[kobo-download] unexpected", err);
