@@ -41,6 +41,11 @@
   .title { font-weight:bold; }
   .author { font-weight:normal; }
   .date { display:block; font-size:14px; font-weight:normal; margin-top:4px; }
+  .tabs { margin:0 0 6px 0; }
+  .tab { display:inline-block; border:2px solid #000; padding:10px 12px;
+         font-size:17px; text-decoration:none; color:#000; background:#fff;
+         margin-right:8px; }
+  .tab.on { background:#000; color:#fff; font-weight:bold; }
 </style>
 </head>
 <body>
@@ -49,6 +54,7 @@
 <script>
 /* Vanilla ES5 — must run on the old WebKit shipped with Kobo Aura HD / Clara BW. */
 var API_BASE = 'https://qgkgecfagagfiesawodw.supabase.co/functions/v1';
+var APP_BASE = 'https://kobo-buddy.lovable.app';
 var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFna2dlY2ZhZ2FnZmllc2F3b2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MDMxNjksImV4cCI6MjA5ODE3OTE2OX0.-qV8qio1yWlU99SIVFF3AuC6DvcqLX2at_AVhY97iuk';
 var sessionToken = null;
 try { sessionToken = window.localStorage.getItem('kobo_t'); } catch (e) { sessionToken = null; }
