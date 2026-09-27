@@ -42,7 +42,9 @@ function LibraryPage() {
   const deleteFn = useServerFn(deleteEbook);
   const downloadFn = useServerFn(getOwnEbookDownloadUrl);
   const shareFn = useServerFn(shareEbook);
+  const markFn = useServerFn(setEbookDownloaded);
 
+  const [tab, setTab] = useState<"todo" | "archive">("todo");
   const [ebooks, setEbooks] = useState<EbookListItem[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState<string | null>(null);
@@ -73,10 +75,26 @@ function LibraryPage() {
       document.body.appendChild(a);
       a.click();
       a.remove();
+      const when = new Date().toISOString();
+      setEbooks((prev) =>
+        prev ? prev.map((b) => (b.id === id ? { ...b, scaricato_il: when } : b)) : prev,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Download fallito");
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function handleMark(id: string, downloaded: boolean) {
+    try {
+      const res = await markFn({ data: { id, downloaded } });
+      setEbooks((prev) =>
+        prev ? prev.map((b) => (b.id === id ? { ...b, scaricato_il: res.scaricato_il } : b)) : prev,
+      );
+      toast.success(downloaded ? "Spostato in archivio" : "Rimesso tra i da scaricare");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Operazione fallita");
     }
   }
 
