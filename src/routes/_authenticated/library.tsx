@@ -169,7 +169,7 @@ function LibraryPage() {
             <div>
               <p className="text-sm font-semibold leading-none">Libreria</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                {sorted ? `${sorted.length} ePub` : "…"}
+                {all ? `${all.length} ePub` : "…"}
               </p>
             </div>
           </div>
@@ -177,6 +177,22 @@ function LibraryPage() {
       </header>
 
       <main className="max-w-md mx-auto px-4 py-6">
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          <Button
+            variant={tab === "todo" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTab("todo")}
+          >
+            Da scaricare ({todoCount})
+          </Button>
+          <Button
+            variant={tab === "archive" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTab("archive")}
+          >
+            Archivio ({doneCount})
+          </Button>
+        </div>
         <Card className="p-2">
           {sorted === null ? (
             <div className="flex items-center justify-center py-10 text-muted-foreground">
@@ -184,7 +200,9 @@ function LibraryPage() {
             </div>
           ) : sorted.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">
-              Nessun libro ancora. Carica il tuo primo ePub.
+              {tab === "archive"
+                ? "Nessun libro ancora scaricato."
+                : "Nessun libro da scaricare."}
             </p>
           ) : (
             <ul className="divide-y">
