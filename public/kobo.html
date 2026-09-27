@@ -125,6 +125,14 @@ function logout() {
   return false;
 }
 
+var currentView = 'todo';
+
+function showView(view) {
+  currentView = view;
+  renderLibrary();
+  return false;
+}
+
 function renderLibrary() {
   setRoot('<h1>La tua libreria</h1><p>Caricamento...</p>');
   xhrPost(API_BASE + '/kobo-library', { token: sessionToken }, function (status, data) {
@@ -138,14 +146,30 @@ function renderLibrary() {
       setRoot('<h1>La tua libreria</h1><div class="err">Errore di rete. Aggiorna la pagina.</div>');
       return;
     }
-    var header = ''
-      + '<h1>La tua libreria</h1>'
-      + '<p class="info">Collegato come ' + esc(data.displayName || data.email || 'utente')
-      + ' &nbsp; <a href="#" class="logout" onclick="return logout();">[Esci]</a></p>';
 
-    var books = data.books || [];
+    var all = data.books || [];
+    var todo = [];
+    var done = [];
+    for (var k = 0; k < all.length; k++) {
+      if (all[k].scaricato_il) { done.push(all[k]); } else { todo.push(all[k]); }
+    }
+    var books = (currentView === 'archive') ? done : todo;
+
+    var header = ''
+      + '<h1>' + (currentView === 'archive' ? 'Archivio' : 'Da scaricare') + '</h1>'
+      + '<p class="info">Collegato come ' + esc(data.displayName || data.email || 'utente')
+      + ' &nbsp; <a href="#" class="logout" onclick="return logout();">[Esci]</a></p>'
+      + '<p class="tabs">'
+      + (currentView === 'archive'
+          ? '<a href="#" class="tab" onclick="return showView(\'todo\');">Da scaricare (' + todo.length + ')</a> <span class="tab on">Archivio (' + done.length + ')</span>'
+          : '<span class="tab on">Da scaricare (' + todo.length + ')</span> <a href="#" class="tab" onclick="return showView(\'archive\');">Archivio (' + done.length + ')</a>')
+      + '</p>';
+
     if (books.length === 0) {
-      setRoot(header + '<p>Nessun ePub pronto. Ottimizza un libro dal telefono e tornera qui.</p>');
+      var empty = (currentView === 'archive')
+        ? 'Nessun libro ancora scaricato.'
+        : 'Nessun nuovo ePub. Tutti i libri sono in Archivio.';
+      setRoot(header + '<p>' + empty + '</p><div id="error"></div>');
       return;
     }
     var rows = '';
@@ -153,17 +177,30 @@ function renderLibrary() {
       var b = books[i];
       var label = esc(b.titolo);
       if (b.autore) label += ' <span class="author">- ' + esc(b.autore) + '</span>';
-      var dateStr = formatDate(b.caricato_il);
+      var dateStr = (currentView === 'archive' && b.scaricato_il)
+        ? 'Scaricato il ' + formatDate(b.scaricato_il)
+        : formatDate(b.caricato_il);
       var modBadge = b.is_modified ? ' (Modificato)' : '';
+      var safeTitle = esc(b.titolo).replace(/'/g, "\\'");
+      var extra = (currentView === 'archive')
+        ? '<a class="del" href="#" onclick="return markBook(\'' + esc(b.id) + '\', false);">[Da scaricare]</a> '
+        : '';
       rows += '<tr>'
             + '<td><span class="title">' + label + '</span>'
             +   '<span class="date">' + dateStr + modBadge + '</span></td>'
             + '<td class="dl"><a class="dl" href="#" onclick="return startDownload(\'' + esc(b.id) + '\');">DOWNLOAD</a></td>'
-            + '<td class="del"><a class="del" href="#" onclick="return removeBook(\'' + esc(b.id) + '\',\'' + esc(b.titolo).replace(/'/g, "\\'") + '\');">[Elimina]</a></td>'
+            + '<td class="del">' + extra + '<a class="del" href="#" onclick="return removeBook(\'' + esc(b.id) + '\',\'' + safeTitle + '\');">[Elimina]</a></td>'
             + '</tr>';
     }
     setRoot(header + '<table class="books">' + rows + '</table><div id="error"></div>');
   });
+}
+
+function markBook(id, downloaded) {
+  xhrPostPlain(APP_BASE + '/api/public/kobo/mark',
+    { token: sessionToken, ebookId: id, downloaded: downloaded },
+    function () { renderLibrary(); });
+  return false;
 }
 
 function formatDate(iso) {
