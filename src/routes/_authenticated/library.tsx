@@ -220,10 +220,22 @@ function LibraryPage() {
                           </p>
                         )}
                         <p className="text-[10px] text-muted-foreground mt-0.5">
-                          Caricato il {formatDate(b.caricato_il)}
+                          {b.scaricato_il
+                            ? `Scaricato il ${formatDate(b.scaricato_il)}`
+                            : `Caricato il ${formatDate(b.caricato_il)}`}
                         </p>
                       </div>
                       <div className="flex items-center gap-0.5">
+                        {b.scaricato_il && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleMark(b.id, false)}
+                            aria-label="Rimetti tra i da scaricare"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           size="icon"
                           variant="ghost"
