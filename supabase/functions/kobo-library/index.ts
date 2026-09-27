@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
         autore: b.autore ?? "",
         caricato_il: b.caricato_il,
         is_modified: b.is_modified,
+        scaricato_il: b.scaricato_il ?? null,
       }));
 
     return json({
