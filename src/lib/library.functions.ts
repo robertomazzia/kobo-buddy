@@ -142,6 +142,11 @@ export const getOwnEbookDownloadUrl = createServerFn({ method: "POST" })
       .from("ebooks")
       .createSignedUrl(row.file_path, 300, { download: `${safe}.epub` });
     if (e2 || !signed?.signedUrl) throw new Error("Impossibile generare il link");
+    await supabase
+      .from("ebooks")
+      .update({ scaricato_il: new Date().toISOString() })
+      .eq("id", data.id)
+      .eq("user_id", userId);
     return { url: signed.signedUrl, fileName: `${safe}.epub` };
   });
 
